@@ -25,5 +25,5 @@ $(document).ready(function() {
     	var atts = { id: "video_player" };//The id for the inserted element by the API
     	swfobject.embedSWF("http://www.youtube.com/apiplayer?version=3&enablejsapi=1&playerapiid=player1", "YTplayerHolder", "480", "295", "9", null, null, params, atts);
 	var $add_video_button = $("#add_video_button");
-	$add_video_button.click = add_video_button_click;
+	$add_video_button.click(add_video_button_click);
 } );
