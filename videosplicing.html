@@ -6,12 +6,24 @@
         <script src='jqwidgets/jqxslider.js'></script>
         <script src='scripts/swfobject.js'></script>
         
-		<script src='scripts/script.js'></script>
+	<script src='scripts/script.js'></script>
         <link rel='stylesheet' href='jqwidgets/styles/jqx.base.css' type='text/css'></link>
+	<style>
+		#vid
+		{
+			width: 250px;
+		}
+	</style>
 	</head>
     <body>
         <div id='main-container'>
             <div id='workspace'>
+		<div>
+			<span>Type video id here:</span>
+			<input type='text' id='vid'></input>
+			<button id='add_video_button'>Add video</button>
+		</div>
+		
                 <div id="YTplayerHolder">
                     You need Flash player 8+ and JavaScript enabled to view this video.
                 </div>
