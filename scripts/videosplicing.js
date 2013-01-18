@@ -1,4 +1,29 @@
 
+
+function Link(source_doc, target_doc) {
+	this.source_doc = source_doc;
+	this.target_doc = target_doc;
+	this.type = "";
+}
+
+function CompVideo() { // Composite video class
+	this.links = [];
+	this.videos = [];
+}
+
+function VideoClip(param) {
+	var default_option = {
+		vid:"", start: 0.0, end: 0.0, position: 0.0
+	};
+	var option = $.extend({}, default_option, param);
+	
+	this.vid = option.vid;
+	this.start = option.start;
+	this.end = option.end;
+	this.position = option.position;
+}
+
+
 var player;
 
 function onYouTubePlayerReady(playerId) {
@@ -18,7 +43,7 @@ function add_video_button_click() {
 
 $(document).ready(function() {
     	var range_selector = $("#range_selector");
-    	range_selector.jqxSlider({ showButtons: true, height: 30, min: 500, max: 4000, step: 350, ticksFrequency: 350, mode: 'fixed', values: [500, 4000], rangeSlider: true, width: 180 });
+	range_selector.slider({range: true});
 
 	//The allowScriptAccess parameter in the code is needed to allow the player SWF to call functions on the containing HTML page, since the player is hosted on a different domain from the HTML page.
 	var params = { allowScriptAccess: "always" };
