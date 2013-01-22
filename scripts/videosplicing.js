@@ -1,4 +1,7 @@
 
+//TODO: fine tune the start and end frame with left and right arrow keys
+
+
 var player;
 
 function Link(source_doc, target_doc) {
@@ -174,21 +177,37 @@ var video_timer;
 		$("#stop_button").click(stop_button_onclick);		
 		$(player).data("videosplicerObj", this);
 		var play_button_onclick = function() {
+			//TODO: after the first round of videos finish playing, the second time you click play button, it is the last video that will be played, from where last time it stoppe playing, change this
+			//TODO: Do something about the range selection slider
+			//TODO: 1. If it is in the player's mode, then either not show it or disable it and the "select range" button
+			//TODO: 2. If it is in the editor's mode, then update the max value and reposition the two handles
 			var splicer_video = $(this).data("videosplicerObj").data("video_doc");
 			video_timer = setInterval( function() { splicer_video.tick();} ,100);
 			
 			var cur_video =  splicer_video.videos[splicer_video.current];
+			var start;
+			if(splicer_video.position >= cur_video.position && splicer_video.position < cur_video.position + cur_video.duration)
+				start = cur_video.start + splicer_video.position - cur_video.position;
+			else	start = cur_video.start;
+			var end = cur_video.start + cur_video.duration;
+			console.log("Playing video from " + start + " to " + end);
 			player.loadVideoById( {videoId:cur_video.vid,
-						startSeconds:cur_video.start + splicer_video.position - cur_video.position,
-						endSeconds:cur_video.start + cur_video.duration});
+						startSeconds:start,
+						endSeconds:end});
 			playerStateChanged = function(state) {
+			    var duration = player.getDuration();
+			    console.log("Total duration of video:" + duration);
+			    $range_selector.slider("option","max",duration);
+			    var left = video_doc.videos[video_doc.current].start; 
+			    var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
+			    console.log(left + "<==>" + right);
+			    $range_selector.slider("option","values",[left, right]);
 			    if((state == 2 || state == 0)) {
-			        console.log(video_doc.current);
+			        console.log("Switched from video " + video_doc.current + " to video " + (video_doc.current + 1));
 				video_doc.current++;
 				if(video_doc.current == video_doc.videos.length) {
 				    video_doc.current = 0;
 				    video_doc.position = 0.0;
-				    //TODO: this will cause this function to be caled again which will result in videos being played in a loop. have a bool state outside this funtion to break the loop
 				    playerStateChanged = function(state){};
 				    return;
 				}
