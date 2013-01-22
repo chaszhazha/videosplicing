@@ -120,15 +120,6 @@ var video_timer;
 	};
 	
 	$.fn.videosplicer = function(opt) {
-		var play_button_onclick = function() {
-			var splicer_video = $(this).data("videosplicerObj").data("video_doc");
-			video_timer = setInterval( function() { splicer_video.tick();} ,100);
-			
-			var cur_video =  splicer_video.videos[splicer_video.current];
-			player.loadVideoById( {videoId:cur_video.vid,
-						startSeconds:cur_video.start + splicer_video.position - cur_video.position,
-						endSeconds:cur_video.start + cur_video.duration});
-		};
 		var stop_button_onclick = function() {
 			clearInterval(video_timer);
 			player.stopVideo();
@@ -147,12 +138,12 @@ var video_timer;
 				"</div> " + 
 				"<div id='splicer_time_markers'><span id=''></span></div>" + 
                 		"<div id='splicer_range_selector'></div>" +
-				"<button id='splicer_select_range_button'>Selection range for video clip</button>" + 
-                		"<div id='timeline'></div>");
+				"<button id='splicer_select_range_button'>Select range for video clip</button>" + 
+                		"<div id='timeline'><div id='splicer_timeline_slider'></div></div>");
 		$("#vid").css({width:"200px"});
 		$("head").append("<style>" + 
 				"#video_container{margin:0 auto;  width:" + option.player_width + "px;}" + 
-				"#vid_input{margin:0 auto; width: 500px;}" + 
+				"#vid_input{margin:0 auto; width: 600px;}" + 
 				"#splicer_select_range_button{float: right; margin-top: 10px;}" + 
 				"</style>");
 	    	var params = { allowScriptAccess: "always" };
@@ -160,12 +151,15 @@ var video_timer;
     	    	swfobject.embedSWF("http://www.youtube.com/apiplayer?version=3&enablejsapi=1&playerapiid=player1", "YTplayerHolder", "480", "295", "9", null, null, params, atts);
 		
 		var $range_selector = $("#splicer_range_selector");
+		var $timeline_slider = $("#splicer_timeline_slider");
 		//console.log($range_selector.parent().width());
 		//$range_selector.css({width: ""});
 
 		//Initilizing the range slider, set to disabled because there are no video clips included:
 		$range_selector.slider({range: true, slide: slider_onslide});
-		$range_selector.css("margin-top", "10px");
+		$range_selector.css({marginTop: "10px", width:"450px", marginLeft:"auto", marginRight:"auto"});
+		$timeline_slider.slider();
+		$timeline_slider.css("margin-top", "50px");
 		//$range_selector.slider("disable");
 		var $add_video_button = $("#splicer_add_video_button");
 		$add_video_button.data("videosplicerObj" , this);
@@ -176,27 +170,37 @@ var video_timer;
 		$(this.data("video_doc")).bind("video_switched", this,  on_video_switched);
 		this.data("range_selector", $range_selector);
 		$("#play_button").data("videosplicerObj", this);
-		$("#play_button").click(play_button_onclick);	
+			
 		$("#stop_button").click(stop_button_onclick);		
 		$(player).data("videosplicerObj", this);
-		playerStateChanged = function(state) {
-			if((state == 2 || state == 0)) {
-				console.log(video_doc.current);
+		var play_button_onclick = function() {
+			var splicer_video = $(this).data("videosplicerObj").data("video_doc");
+			video_timer = setInterval( function() { splicer_video.tick();} ,100);
+			
+			var cur_video =  splicer_video.videos[splicer_video.current];
+			player.loadVideoById( {videoId:cur_video.vid,
+						startSeconds:cur_video.start + splicer_video.position - cur_video.position,
+						endSeconds:cur_video.start + cur_video.duration});
+			playerStateChanged = function(state) {
+			    if((state == 2 || state == 0)) {
+			        console.log(video_doc.current);
 				video_doc.current++;
 				if(video_doc.current == video_doc.videos.length) {
-					video_doc.current = 0;
-					video_doc.position = 0.0;
-					//TODO: this will cause this function to be caled again which will result in videos being played in a loop. have a bool state outside this funtion to break the loop
-					this.stopVideo();
-					return;
+				    video_doc.current = 0;
+				    video_doc.position = 0.0;
+				    //TODO: this will cause this function to be caled again which will result in videos being played in a loop. have a bool state outside this funtion to break the loop
+				    playerStateChanged = function(state){};
+				    return;
 				}
 
 				var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
 				player.loadVideoById( {videoId:video_doc.videos[video_doc.current].vid,
 							startSeconds:start_at,
 							endSeconds:video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration});
+			    }
 			}
-		}
+		};
+		$("#play_button").click(play_button_onclick);
 		//******************************Test section*********************************
 		this.data("video_doc").AddVideo(new VideoClip({vid:"HxOA9BO2o6I", start: 5.0, duration: 15.0, position:0.0}))
 					.AddVideo(new VideoClip({vid:"2euenOOulHE", start: 25.0, duration: 15.0, position:15.0}))
