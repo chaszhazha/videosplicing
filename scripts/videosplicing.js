@@ -48,10 +48,15 @@ CompositeVideo.prototype.AddVideo = function(video_clip)
 CompositeVideo.prototype.UpdateCurrentVideo = function(start, duration) 
 {
 	var old_duration = this.videos[this.current].duration;
-	this.duration += (duration - old_duration);
+	var del = duration - old_duration;
+	this.duration += del;
 	this.videos[this.current].duration = duration;
 	this.videos[this.current].start = start;
-	//TODO: either update the visual for the clips here or somewhere where this function gets called
+	//TODO: Also update the position of the videos that come after the current video
+	var i ;
+	for(i= this.current + 1;i < this.videos.length; i++) {
+		this.videos[i].position += del;
+	}
 }
 
 /**
@@ -63,6 +68,10 @@ CompositeVideo.prototype.tick = function() {
 	//TODO: update the slider for playback position of the whole video doc
 }
 
+
+// This function is left emtpy because the actual implementation will cause the function to be called not in a recursive way but in an event driven way so that\
+// it will be called when not needed. So when you want to break out of the vicious cycle you just the function an empty body. It is declared here because the next function
+// onYoutubePlayerReady() need to call this function and onYoutubePlayerReady needs to be globally accessable per google youtube api 
 var playerStateChanged = function(state) {};
 
 function onYouTubePlayerReady(playerId) {
@@ -118,7 +127,7 @@ var video_timer;
 	}
 
 	var slider_onslide = function(event, ui) {
-		//TODO: finish this function
+		//TODO: finish this function, show the frame of the video
 		//console.log($(this).data("videosplicerObj"));
 	};
 	
@@ -174,13 +183,20 @@ var video_timer;
 		this.data("range_selector", $range_selector);
 		$("#play_button").data("videosplicerObj", this);
 			
-		$("#stop_button").click(stop_button_onclick);		
+		$("#stop_button").click(stop_button_onclick);	
+			
 		$(player).data("videosplicerObj", this);
+		var select_range_button_click = function() {
+			//TODO:
+			video_doc.UpdateCurrentVideo($range_selector.slider("option","values")[0], $range_selector.slider("option","values")[1] - $range_selector.slider("option","values")[0]);
+			
+		};
+		$("#splicer_select_range_button").click(select_range_button_click);
 		var play_button_onclick = function() {
 			//TODO: after the first round of videos finish playing, the second time you click play button, it is the last video that will be played, from where last time it stoppe playing, change this
 			//TODO: Do something about the range selection slider
 			//TODO: 1. If it is in the player's mode, then either not show it or disable it and the "select range" button
-			//TODO: 2. If it is in the editor's mode, then update the max value and reposition the two handles
+			//If it is in the editor's mode, then update the max value and reposition the two handles
 			var splicer_video = $(this).data("videosplicerObj").data("video_doc");
 			video_timer = setInterval( function() { splicer_video.tick();} ,100);
 			
@@ -221,9 +237,9 @@ var video_timer;
 		};
 		$("#play_button").click(play_button_onclick);
 		//******************************Test section*********************************
-		this.data("video_doc").AddVideo(new VideoClip({vid:"HxOA9BO2o6I", start: 5.0, duration: 15.0, position:0.0}))
-					.AddVideo(new VideoClip({vid:"2euenOOulHE", start: 25.0, duration: 15.0, position:15.0}))
-					.AddVideo(new VideoClip({vid:"XnxSLwLFfNY", start: 315.0, duration: 30.0, position:30.0}));
+		this.data("video_doc").AddVideo(new VideoClip({vid:"mYIfiQlfaas", start: 85.0, duration: 15.0, position:0.0}))
+					.AddVideo(new VideoClip({vid:"6tvUPFsaj5s", start: 25.0, duration: 15.0, position:15.0}))
+					.AddVideo(new VideoClip({vid:"W9t3mbv2Hd8", start: 115.0, duration: 30.0, position:30.0}));
 		//***************************************************************************
 
 		return this;
