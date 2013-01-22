@@ -9,14 +9,14 @@ function Link(source_doc, target_doc) {
 
 function VideoClip(param) {
 	var default_option = {
-		vid:"", start: 0.0, end: 0.0, position: 0.0
+		vid:"", start: 0.0, duration: 0.0, position: 0.0
 	};
 	param = param || {};
 	var option = $.extend({}, default_option, param);
 	
 	this.vid = option.vid;
 	this.start = option.start;
-	this.end = option.end;
+	this.duration = option.duration;
 	this.position = option.position;
 }
 
@@ -42,14 +42,11 @@ CompositeVideo.prototype.AddVideo = function(video_clip)
 	return this;
 }
 
-CompositeVideo.prototype.UpdateCurrentVideo = function(start, end) 
+CompositeVideo.prototype.UpdateCurrentVideo = function(start, duration) 
 {
-	if(end <= start)
-		return;
-	var duration = end - start;
-	var old_duration = this.videos[this.current].end - this.videos[this.current].start;
+	var old_duration = this.videos[this.current].duration;
 	this.duration += (duration - old_duration);
-	this.videos[this.current].end = end;
+	this.videos[this.current].duration = duration;
 	this.videos[this.current].start = start;
 	//TODO: either update the visual for the clips here or somewhere where this function gets called
 }
@@ -59,30 +56,31 @@ CompositeVideo.prototype.UpdateCurrentVideo = function(start, end)
  */	
 CompositeVideo.prototype.tick = function() {
 	this.position = player.getCurrentTime() - this.videos[this.current].start;
+	//console.log(this.position + " = " + player.getCurrentTime() + " - " + this.videos[this.current].start);
 	//TODO: update the slider for playback position of the whole video doc
-	if( (this.position + 0.1) > this.videos[this.current].position + this.videos[this.current].end - this.videos[this.current].start)
-	{
-		this.current++;
-		if(this.current == this.videos.length) {
-			this.current = 0;
-			this.position = 0.0;
-		}
-		//TODO: switch to the next video, if current video is the last video, then stop the playback and change the current video to point to the first video
-		$(this).trigger("video_switched");
-	}
 }
+
+var playerStateChanged = function(state) {};
 
 function onYouTubePlayerReady(playerId) {
 	player = document.getElementById("video_player");
 	//player.cueVideoById("s2XzoA94Zws");
 	//player.playVideo();
 	player.style.margin = "0 auto";
+	player.addEventListener("onStateChange", "playerStateChanged");
+	//var tmp = $(player).data("videosplicerObj");
+	//console.log($(player).data("videosplicerObj"));
 }
 
 var video_timer;
 (function($){
-	var on_video_switched = function() {
-		
+	var on_video_switched = function(event) {
+		//console.log(event.data.data("video_doc"));
+		var splicer_video = event.data.data("video_doc");
+		var cur_video =  splicer_video.videos[splicer_video.current];
+		/*player.loadVideoById( {videoId:cur_video.vid,
+					startSeconds:cur_video.start + splicer_video.position - cur_video.position,
+					endSeconds:cur_video.start + cur_video.duration});*/
 	};
 	var add_video_button_click = function () {
 		if(!player)
@@ -117,15 +115,23 @@ var video_timer;
 	}
 
 	var slider_onslide = function(event, ui) {
-		console.log($(this).data("videosplicerObj"));
+		//TODO: finish this function
+		//console.log($(this).data("videosplicerObj"));
 	};
 	
 	$.fn.videosplicer = function(opt) {
 		var play_button_onclick = function() {
-			video_timer = setInterval( $(this).data("videosplicerObj").tick ,100);
+			var splicer_video = $(this).data("videosplicerObj").data("video_doc");
+			video_timer = setInterval( function() { splicer_video.tick();} ,100);
+			
+			var cur_video =  splicer_video.videos[splicer_video.current];
+			player.loadVideoById( {videoId:cur_video.vid,
+						startSeconds:cur_video.start + splicer_video.position - cur_video.position,
+						endSeconds:cur_video.start + cur_video.duration});
 		};
 		var stop_button_onclick = function() {
 			clearInterval(video_timer);
+			player.stopVideo();
 		}
 		opt = opt || {};
 		var default_opt = {player_height: 295, player_width:480};
@@ -166,17 +172,35 @@ var video_timer;
 		$range_selector.data("videosplicerObj" , this);
 		$add_video_button.click(add_video_button_click);
 		this.data("video_doc" , new CompositeVideo());
-		$(this.data("video_doc")).bind("video_switched", on_video_switched);
+		var video_doc = this.data("video_doc");
+		$(this.data("video_doc")).bind("video_switched", this,  on_video_switched);
 		this.data("range_selector", $range_selector);
 		$("#play_button").data("videosplicerObj", this);
 		$("#play_button").click(play_button_onclick);	
 		$("#stop_button").click(stop_button_onclick);		
+		$(player).data("videosplicerObj", this);
+		playerStateChanged = function(state) {
+			if((state == 2 || state == 0)) {
+				console.log(video_doc.current);
+				video_doc.current++;
+				if(video_doc.current == video_doc.videos.length) {
+					video_doc.current = 0;
+					video_doc.position = 0.0;
+					//TODO: this will cause this function to be caled again which will result in videos being played in a loop. have a bool state outside this funtion to break the loop
+					this.stopVideo();
+					return;
+				}
 
-
+				var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
+				player.loadVideoById( {videoId:video_doc.videos[video_doc.current].vid,
+							startSeconds:start_at,
+							endSeconds:video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration});
+			}
+		}
 		//******************************Test section*********************************
-		this.data("video_doc").AddVideo(new VideoClip({vid:"HxOA9BO2o6I", start: 5.0, end: 10.0, position:0.0}))
-					.AddVideo(new VideoClip({vid:"vTzMQonwH0U", start: 5.0, end: 10.0, position:5.0}))
-					.AddVideo(new VideoClip({vid:"84mXSz2-XPM", start: 5.0, end: 30.0, position:10.0}));
+		this.data("video_doc").AddVideo(new VideoClip({vid:"HxOA9BO2o6I", start: 5.0, duration: 15.0, position:0.0}))
+					.AddVideo(new VideoClip({vid:"2euenOOulHE", start: 25.0, duration: 15.0, position:15.0}))
+					.AddVideo(new VideoClip({vid:"XnxSLwLFfNY", start: 315.0, duration: 30.0, position:30.0}));
 		//***************************************************************************
 
 		return this;
