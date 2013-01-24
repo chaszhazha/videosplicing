@@ -1,9 +1,10 @@
 
 //TODO: fine tune the start and end frame with left and right arrow keys
+//TODO: jump to the next video
 //TODO: show a list of all the videos
 //TODO: mark the time on the timeline where there's a video switch
-//TODO: dragging the timeline slider handle needs to play the corresponding video
-
+//TODO: find a way to have a handler for youtube player metadata onload to get the duration of the video
+//TODO: when all the videos finish playing, the player will stop at the last frame of the last video whereas the data will point to the first video such that changes to the range of the video will be applied to the first video but the user will feel like they were changing the last video
 var player;
 
 function Link(source_doc, target_doc) {
@@ -26,14 +27,13 @@ function VideoClip(param) {
 }
 
 
-function CompositeVideo(videosplicerObj) { // Composite video class
+function CompositeVideo() { // Composite video class
 	this.links = [];
 	this.videos = [];
 	this.current = 0; // the index of the currently played video
 	this.duration = 0.0;
 	this.position = 0.0;
 	this.isPlaying = false;
-	this.$videosplicerObj = videosplicerObj;
 }
 
 CompositeVideo.prototype.AddVideo = function(video_clip)
@@ -43,6 +43,7 @@ CompositeVideo.prototype.AddVideo = function(video_clip)
 		console.error("Argument need to be an instance of VideoClip");
 		return this;
 	}
+	video_clip.position = this.duration;
 	this.videos.push(video_clip);
 	this.links.push(new Link(this, video_clip));
 	this.duration += video_clip.duration;
@@ -57,10 +58,6 @@ CompositeVideo.prototype.UpdateCurrentVideo = function(start, duration)
 	this.videos[this.current].duration = duration;
 	this.videos[this.current].start = start;
 
-	//Update the max value of the timeline slider
-	this.data("timeline_slider").slider("option","max", this.duration);
-	this.data("timeline_slider").slider("option","value", this.position);
-
 	//Also update the position of the videos that come after the current video
 	var i ;
 	for(i= this.current + 1;i < this.videos.length; i++) {
@@ -68,24 +65,29 @@ CompositeVideo.prototype.UpdateCurrentVideo = function(start, duration)
 	}
 }
 
-/**
- * This function is called every 0.1 seconds when the video is playing. Used to update the ui and monitor when to switch video
- */	
-CompositeVideo.prototype.tick = function() {
-	this.position = this.videos[this.current].position + player.getCurrentTime() - this.videos[this.current].start;
-	//console.log(this.position + " = " + player.getCurrentTime() + " - " + this.videos[this.current].start);
-	//TODO: update the slider for playback position of the whole video doc
-	this.$videosplicerObj.data("timeline_slider").slider("option","value",this.position);
-	//this.data()
+CompositeVideo.prototype.Reposition = function(new_pos)
+{
+	if(new_pos <0 || new_pos > this.duration)
+		return;
+	var i;
+	for(i = 1; i < this.videos.length; i++) {
+		if(this.videos[i].position >new_pos) {
+			break;
+		}
+	}
+	this.current = i - 1;
+	this.position = new_pos;
 }
 
-
-// This function is left emtpy because the actual implementation will cause the function to be called not in a recursive way but in an event driven way so that\
+// This function is left emtpy here because the actual implementation will cause the function to be called not in a recursive way but in an event driven way so that\
 // it will be called when not needed. So when you want to break out of the vicious cycle you just the function an empty body. It is declared here because the next function
 // onYoutubePlayerReady() need to call this function and onYoutubePlayerReady needs to be globally accessable per google youtube api 
 var playerStateChanged = function(state) {};
 
+var playerReadyFuncs = [];
+
 function onYouTubePlayerReady(playerId) {
+	console.log(playerId);
 	player = document.getElementById("video_player");
 	//player.cueVideoById("s2XzoA94Zws");
 	//player.playVideo();
@@ -93,7 +95,11 @@ function onYouTubePlayerReady(playerId) {
 	player.addEventListener("onStateChange", "playerStateChanged");
 	//var tmp = $(player).data("videosplicerObj");
 	//console.log($(player).data("videosplicerObj"));
+	for(var i = 0; i < playerReadyFuncs.length; i++)
+		playerReadyFuncs[i]();
 }
+
+
 
 var video_timer = null;
 (function($){
@@ -136,14 +142,10 @@ var video_timer = null;
 		xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=id&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
 		xmlhttp.send();
 	}
-
-	var slider_onslide = function(event, ui) {
-		//TODO: finish this function, show the frame of the video
-		//console.log($(this).data("videosplicerObj"));
-	};
 	
-	$.fn.videosplicer = function(opt) {
-		opt = opt || {};
+	var methods = {
+	    init: function(opt) {
+			opt = opt || {};
 		var default_opt = {player_height: 295, player_width:480};
 		var option = $.extend({}, default_opt, opt);
 	    	this.html(
@@ -153,6 +155,7 @@ var video_timer = null;
                 		"<div id='video_container'>" +
 					"<div id='YTplayerHolder'>You need Flash player 8+ and JavaScript enabled to view this video.</div>" + 
 					"<button id='play_button'>Play</button>" + 
+					"<button id='pause_button'>Pause</button>" + 
 					"<button id='stop_button'>Stop</button>" + 
 				"</div> " + 
 				"<div id='splicer_time_markers'><span id=''></span></div>" + 
@@ -168,12 +171,24 @@ var video_timer = null;
 	    	var params = { allowScriptAccess: "always" };
     	    	var atts = { id: "video_player" };//The id for the inserted element by the API
     	    	swfobject.embedSWF("http://www.youtube.com/apiplayer?version=3&enablejsapi=1&playerapiid=player1", "YTplayerHolder", "480", "295", "9", null, null, params, atts);
-		this.data("video_doc" , new CompositeVideo(this));
+		this.data("video_doc" , new CompositeVideo());
 		var video_doc = this.data("video_doc");
 		$(video_doc).bind("video_switched", this,  on_video_switched);
-		
+
 		var $range_selector = $("#splicer_range_selector");
 		var $timeline_slider = $("#splicer_timeline_slider");
+
+		/**
+ 		 * This function is called every 0.1 seconds when the video is playing. Used to update the ui's slider
+ 		 */
+		var tick = function() {
+			video_doc.position = video_doc.videos[video_doc.current].position + player.getCurrentTime() - video_doc.videos[video_doc.current].start;
+			//console.log(this.position + " = " + player.getCurrentTime() + " - " + this.videos[this.current].start);
+			//** update the slider for playback position of the whole video doc
+			$timeline_slider.slider("option","value",video_doc.position);
+		};
+
+		
 		//console.log($range_selector.parent().width());
 		//$range_selector.css({width: ""});
 
@@ -188,13 +203,27 @@ var video_timer = null;
 		};
 		var timeline_slider_slidestop = function(event, ui) {
 			if(player) {
-				//TODO: switch video is necessary, calculate index of video based on position,
-				//player.seekTo();
+				//TODO: switch video if necessary, calculate index of video based on position,
+				var old_vid_ind = video_doc.current;
+				video_doc.Reposition($(this).slider("option","value"));
+				if(old_vid_ind != video_doc.current)
+				{
+					var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
+					player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid,
+							startSeconds:start_at,
+							endSeconds:video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration});
+				}
+					
 			}
 			if(video_doc.isPlaying) {
-				video_timer = setInterval(function(){video_doc.tick();}, 100);
+				player.seekTo(video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position);
+				video_timer = setInterval(tick, 100);
 			}
 		}; 
+		var slider_onslide = function(event, ui) {
+			//TODO: finish this function, show the frame of the video
+			//console.log($(this).data("videosplicerObj"));
+		};
 		$range_selector.slider({range: true, slide: slider_onslide, step: 0.05});
 		$range_selector.css({marginTop: "10px", width:"450px", marginLeft:"auto", marginRight:"auto"});
 		$timeline_slider.slider({step:0.1, slide: timeline_slider_onslide, start: timeline_slider_slidestart, stop: timeline_slider_slidestop});
@@ -215,22 +244,40 @@ var video_timer = null;
 				clearInterval(video_timer);
 				video_timer = null;
 			}
-			player.stopVideo();
+			player.pauseVideo();
+			video_doc.position = 0.0;
+			video_doc.current = 0.0;
 		};
+		var pause_button_onclick = function() {
+			video_doc.isPlaying = false;
+			if(video_timer) 
+			{
+				clearInterval(video_timer);
+				video_timer = null;
+			}
+			player.pauseVideo();
+		};
+		$("#pause_button").click(pause_button_onclick);
 		$("#stop_button").click(stop_button_onclick);	
 			
 		$(player).data("videosplicerObj", this);
+
 		var select_range_button_click = function() {
 			video_doc.UpdateCurrentVideo($range_selector.slider("option","values")[0], $range_selector.slider("option","values")[1] - $range_selector.slider("option","values")[0]);
+			//Update the max value of the timeline slider
+			console.log("changing max of timeline slider from " + $timeline_slider.slider("option","max") + " to " + video_doc.duration)
+			$timeline_slider.slider("option","max", video_doc.duration);
+			console.log("Changing position of timeline slider from " + $timeline_slider.slider("option","value") + " to " + video_doc.position);
+			$timeline_slider.slider("option","value", video_doc.position);
 		};
 		$("#splicer_select_range_button").click(select_range_button_click);
 		var play_button_onclick = function() {
-			//TODO: after the first round of videos finish playing, the second time you click play button, it is the last video that will be played, from where last time it stoppe playing, change this
-			//TODO: Do something about the range selection slider
-			//TODO: 1. If it is in the player's mode, then either not show it or disable it and the "select range" button
+			//TODO: 1. If we are in the player's mode, then either not show the range selector or disable it and the "select range" button
 			//If it is in the editor's mode, then update the max value and reposition the two handles
+			if(video_doc.isPlaying)
+				return;			
 			video_doc.isPlaying = true;
-			video_timer = setInterval( function() { video_doc.tick();} ,100);
+			video_timer = setInterval( tick ,100);
 			
 			var cur_video =  video_doc.videos[video_doc.current];
 			var start;
@@ -244,7 +291,15 @@ var video_timer = null;
 						endSeconds:end});
 			playerStateChanged = function(state) {
 			    var duration = player.getDuration();
-			    console.log("Total duration of video:" + duration);
+			    console.log("Player state changed. Total duration of video:" + duration);
+			    if(!video_doc.isPlaying) {
+				if(video_timer) {
+					clearInterval(video_timer);
+					video_timer = null;
+				}
+				playerStateChanged = function(state){};
+				return;
+			    }
 			    $range_selector.slider("option","max",duration);
 			    var left = video_doc.videos[video_doc.current].start; 
 			    var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
@@ -253,7 +308,7 @@ var video_timer = null;
 			    if(state == 1) {
 			    	video_doc.isPlaying = true;
 			    	if(video_timer == null) {
-				    video_timer = setInterval( function() { video_doc.tick();} ,100);
+				    video_timer = setInterval( tick ,100);
 				}
 			    }
 			    else if((state == 2 || state == 0)) {
@@ -278,12 +333,43 @@ var video_timer = null;
 		};
 		$("#play_button").click(play_button_onclick);
 		//******************************Test section*********************************
-		this.data("video_doc").AddVideo(new VideoClip({vid:"mYIfiQlfaas", start: 85.0, duration: 15.0, position:0.0}))
-					.AddVideo(new VideoClip({vid:"6tvUPFsaj5s", start: 25.0, duration: 15.0, position:15.0}))
-					.AddVideo(new VideoClip({vid:"W9t3mbv2Hd8", start: 115.0, duration: 30.0, position:30.0}));
-		$timeline_slider.slider("option","max", video_doc.duration);
+		video_doc.AddVideo(new VideoClip({vid:"mYIfiQlfaas", start: 85.0, duration: 15.0}))
+					.AddVideo(new VideoClip({vid:"6tvUPFsaj5s", start: 25.0, duration: 15.0}))
+					.AddVideo(new VideoClip({vid:"W9t3mbv2Hd8", start: 115.0, duration: 30.0}));
+		//$timeline_slider.slider("option","max", video_doc.duration);
+		
 		//***************************************************************************
 
 		return this;
-	}
+	    },
+	    loadVideos: function(videoDocObj) {
+		if(! (videoDocObj instanceof CompositeVideo)) return this;
+		this.data("video_doc", videoDocObj);
+		this.data("timeline_slider").slider("option","max", videoDocObj.duration);
+		if(videoDocObj.videos.length > 0) {
+			this.data("range_selector").slider("option", "values",[videoDocObj.videos[0].start, videoDocObj.videos[0].start + videoDocObj.videos[0].duration]);
+			player.loadVideoById({videoId:videoDocObj.videos[0].vid,
+						startSeconds:videoDocObj.videos[0].start,
+						endSeconds:videoDocObj.videos[0].start + videoDocObj.videos[0].duration});
+			player.pauseVideo();
+			this.data("range_selector").slider("option", "max", player.getDuration());
+		}
+	    },
+	    onPlayerReady:function(callback) {
+		playerReadyFuncs.push(callback);
+	    }
+	};		
+
+	$.fn.videosplicer = function(method) {
+	    if(methods[method]) {
+		return methods[method].apply(this, Array.prototype.slice.call(arguments,1));
+	    }
+	    else if((typeof method) == 'object' || !method ) {
+		return methods.init.apply(this, arguments);
+	    }
+	    else {
+		$.error('Method ' + method + ' does not exist on jQuery.videosplicer');
+	    }
+	};
+
 })(jQuery);
