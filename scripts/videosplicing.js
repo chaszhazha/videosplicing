@@ -16,7 +16,7 @@ function Link(source_doc, target_doc) {
 
 function VideoClip(param) {
 	var default_option = {
-		vid:"", start: 0.0, duration: 0.0, position: 0.0
+		vid:"", start: 0.0, duration: 0.0, position: 0.0, video_length : 0.0
 	};
 	param = param || {};
 	var option = $.extend({}, default_option, param);
@@ -25,7 +25,7 @@ function VideoClip(param) {
 	this.start = option.start;
 	this.duration = option.duration;//Duration of the clip of the video
 	this.position = option.position;
-	this.video_length = 0.0; //Duration of the youtube video 
+	this.video_length = option.video_length; //Duration of the youtube video 
 }
 
 
@@ -107,7 +107,8 @@ var video_timer = null;
 (function($){
 	var methods = {
 	    init: function(opt) {
-			opt = opt || {};
+		var that = this;
+		opt = opt || {};
 		var default_opt = {player_height: 295, player_width:480};
 		var option = $.extend({}, default_opt, opt);
 	    	this.html(
@@ -137,17 +138,10 @@ var video_timer = null;
 
 		var video_doc = this.data("video_doc");
 
-		var on_video_switched = function(event) {
-			//console.log(event.data.data("video_doc"));
-			var splicer_video = event.data.data("video_doc");
-			var cur_video =  splicer_video.videos[splicer_video.current];
-		};
 		var add_video_button_click = function () {
 			if(!player)
 				return;
 			var $this = $(this);
-			console.log($this.data("videosplicerObj"));
-			console.log(methods);
 			// Send an xmlhttp request to test if the video id is valid
 			xmlhttp=new XMLHttpRequest();
 			var videoid = document.getElementById('vid').value;
@@ -157,8 +151,12 @@ var video_timer = null;
 					var response = $.parseJSON(xmlhttp.responseText);
 					//console.log(response);
 					if(response.items && response.items.length > 0) {
-    						//TODO: this means that the video is valide, now add the video to the UI
-						// 1. position the timeline to the last position
+    						//This means that the video is valide, now add the video to the UI
+						var regex = /PT(\d+)M(\d+)S/i;
+						var time = response.items[0].contentDetails.duration.match(regex);
+						var dur = (time[1] * 60 + time[2]);
+						//TODO 
+						//1. position the timeline to the last position
 						// 2. add the duration of the new video to the timeline's max value (since by default the whole video will be considered the clip)
 						// 3. change the range selection bar
 						// 4. change the video_doc to make the new video it's current video. Also change it's position value
@@ -170,12 +168,11 @@ var video_timer = null;
 				else if (xmlhttp.readyState==4 && xmlhttp.status!=200)
     				{
     					//TODO: show some pop up containing a message saying that the video id is not a valid one
-				}
-			}
+				} 
+			};
 			xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=contentDetails&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
 			xmlhttp.send();
 		};
-		$(video_doc).bind("video_switched", this,  on_video_switched);
 
 		var $range_selector = $("#splicer_range_selector");
 		var $timeline_slider = $("#splicer_timeline_slider");
@@ -184,6 +181,7 @@ var video_timer = null;
  		 * This function is called every 0.1 seconds when the video is playing. Used to update the ui's slider
  		 */
 		var tick = function() {
+			var video_doc = that.data("video_doc");
 			video_doc.position = video_doc.videos[video_doc.current].position + player.getCurrentTime() - video_doc.videos[video_doc.current].start;
 			//console.log(this.position + " = " + player.getCurrentTime() + " - " + this.videos[this.current].start);
 			//** update the slider for playback position of the whole video doc
@@ -204,24 +202,31 @@ var video_timer = null;
 			}
 		};
 		var timeline_slider_slidestop = function(event, ui) {
+			var video_doc = that.data("video_doc");
 			if(player) {
 				//switch video if necessary, calculate index of video based on position,
 				var old_vid_ind = video_doc.current;
 				video_doc.Reposition($(this).slider("option","value"));
-				console.log( "Old range: from " + $range_selector.slider("option","values")[0] + " to " + $range_selector.slider("option","values")[1]);
+				//console.log( "Old range: from " + $range_selector.slider("option","values")[0] + " to " + $range_selector.slider("option","values")[1]);
 				if(old_vid_ind != video_doc.current) 
 				{
 					var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
 					player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid,
 							startSeconds:start_at,
-							endSeconds:video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration});
-					//TODO: at this point the player's metadata is still not loaded so the getDuration function will return 0				
-					var duration = player.getDuration();
-					$range_selector.slider("option","max",duration);
+							endSeconds:video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration});				
+					if(video_doc.videos[video_doc.current].video_length == 0) {
+						video_doc.videos[video_doc.current].video_length = methods.getDurationOfVideoThroughXmlHttpRequest(video_doc.videos[video_doc.current].vid);
+						//console.log("Getting video duration through ajax");
+					}
+					var duration = video_doc.videos[video_doc.current].video_length;
+					
 			    		var left = video_doc.videos[video_doc.current].start; 
 			    		var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
-			    		console.log("New range: from " + left + " to " + right);
-			    		$range_selector.slider("option","values",[left, right]);
+			    		//console.log("New range: from " + left + " to " + right);
+					$range_selector.slider("option",{max: duration, values: [left,right]});
+					//$range_selector.slider("option","max",duration);
+					//$range_selector.slider("option","values",[left, right]);
+			    		
 				}
 					
 			}
@@ -250,6 +255,7 @@ var video_timer = null;
 		this.data("timeline_slider",$timeline_slider);
 		$("#play_button").data("videosplicerObj", this);
 		var stop_button_onclick = function() {
+			var video_doc = that.data("video_doc");
 			video_doc.isPlaying = false;
 			if(video_timer) 
 			{
@@ -259,8 +265,10 @@ var video_timer = null;
 			player.pauseVideo();
 			video_doc.position = 0.0;
 			video_doc.current = 0.0;
+			//TODO: place timeline handle to the left most position, place the range selector handles to the first video's position
 		};
 		var pause_button_onclick = function() {
+			var video_doc = that.data("video_doc");
 			video_doc.isPlaying = false;
 			if(video_timer) 
 			{
@@ -275,6 +283,7 @@ var video_timer = null;
 		$(player).data("videosplicerObj", this);
 
 		var select_range_button_click = function() {
+			var video_doc = that.data("video_doc");
 			video_doc.UpdateCurrentVideo($range_selector.slider("option","values")[0], $range_selector.slider("option","values")[1] - $range_selector.slider("option","values")[0]);
 			//Update the max value of the timeline slider
 			console.log("changing max of timeline slider from " + $timeline_slider.slider("option","max") + " to " + video_doc.duration)
@@ -284,6 +293,7 @@ var video_timer = null;
 		};
 		$("#splicer_select_range_button").click(select_range_button_click);
 		var play_button_onclick = function() {
+			var video_doc = that.data("video_doc");
 			//TODO: 1. If we are in the player's mode, then either not show the range selector or disable it and the "select range" button
 			//If it is in the editor's mode, then update the max value and reposition the two handles
 			if(video_doc.isPlaying)
@@ -312,10 +322,11 @@ var video_timer = null;
 				playerStateChanged = function(state){};
 				return;
 			    }
-			    $range_selector.slider("option","max",duration);
+			   
 			    var left = video_doc.videos[video_doc.current].start; 
 			    var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
-			    console.log(left + "<==>" + right);
+			    //console.log(left + "<==>" + right);
+			    $range_selector.slider("option","max",duration);
 			    $range_selector.slider("option","values",[left, right]);
 			    if(state == 1) {
 			    	video_doc.isPlaying = true;
@@ -345,9 +356,10 @@ var video_timer = null;
 		};
 		$("#play_button").click(play_button_onclick);
 		//******************************Test section*********************************
+/*
 		video_doc.AddVideo(new VideoClip({vid:"mYIfiQlfaas", start: 85.0, duration: 15.0}))
 					.AddVideo(new VideoClip({vid:"6tvUPFsaj5s", start: 25.0, duration: 15.0}))
-					.AddVideo(new VideoClip({vid:"W9t3mbv2Hd8", start: 115.0, duration: 30.0}));
+					.AddVideo(new VideoClip({vid:"W9t3mbv2Hd8", start: 115.0, duration: 30.0}));*/
 		//$timeline_slider.slider("option","max", video_doc.duration);
 		
 		//***************************************************************************
@@ -355,42 +367,51 @@ var video_timer = null;
 		return this;
 	    },
 	    getDurationOfVideoThroughXmlHttpRequest: function(vid){
+		if(!vid.length || vid == "")
+			return null;
 		xmlhttp=new XMLHttpRequest();
 		var videoid = document.getElementById('vid').value;
+		var duration;
 		xmlhttp.onreadystatechange=function() {
 			if (xmlhttp.readyState==4 && xmlhttp.status==200)
     			{
 				var response = $.parseJSON(xmlhttp.responseText);
 				if(response.items && response.items.length > 0) {
-					var ret = 0;
 					var regex = /PT(\d+)M(\d+)S/i;
 					var time = response.items[0].contentDetails.duration.match(regex);
-					ret += (time[1] * 60 + time[2]);
-					return ret;
+					duration = (time[1] * 60 + time[2]);
+					return;
 				}
 				else {
-					return null;
+					duration = null;
+					return
 				}
 			}
 			else if (xmlhttp.readyState==4 && xmlhttp.status!=200)
     			{
-    				return null;
+    				duration = null;
+				return;
 			}
 		}
 		xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=contentDetails&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
-		xmlhttp.send();	
+		xmlhttp.send();
+		while(typeof duration == 'undefined')
+			console.log("While loop in getDurationOfVideoThroughXmlHttpRequest");
+		return duration;
 	    },
 	    loadVideos: function(videoDocObj) {
 		if(! (videoDocObj instanceof CompositeVideo)) return this;
 		this.data("video_doc", videoDocObj);
 		this.data("timeline_slider").slider("option","max", videoDocObj.duration);
 		if(videoDocObj.videos.length > 0) {
+			this.data("range_selector").slider("option","max", videoDocObj.videos[0].video_length);
 			this.data("range_selector").slider("option", "values",[videoDocObj.videos[0].start, videoDocObj.videos[0].start + videoDocObj.videos[0].duration]);
 			player.loadVideoById({videoId:videoDocObj.videos[0].vid,
 						startSeconds:videoDocObj.videos[0].start,
 						endSeconds:videoDocObj.videos[0].start + videoDocObj.videos[0].duration});
 			player.pauseVideo();
 			this.data("range_selector").slider("option", "max", player.getDuration());
+			//TODO: also validate that each video is valid and that the duration of the actual youtube video matches the data passed in
 		}
 	    },
 	    onPlayerReady:function(callback) {
