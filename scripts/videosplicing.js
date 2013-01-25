@@ -5,6 +5,7 @@
 //TODO: mark the time on the timeline where there's a video switch
 //TODO: find a way to have a handler for youtube player metadata onload to get the duration of the video
 //TODO: when all the videos finish playing, the player will stop at the last frame of the last video whereas the data will point to the first video such that changes to the range of the video will be applied to the first video but the user will feel like they were changing the last video
+
 var player;
 
 function Link(source_doc, target_doc) {
@@ -22,8 +23,9 @@ function VideoClip(param) {
 	
 	this.vid = option.vid;
 	this.start = option.start;
-	this.duration = option.duration;
+	this.duration = option.duration;//Duration of the clip of the video
 	this.position = option.position;
+	this.video_length = 0.0; //Duration of the youtube video 
 }
 
 
@@ -103,46 +105,6 @@ function onYouTubePlayerReady(playerId) {
 
 var video_timer = null;
 (function($){
-	var on_video_switched = function(event) {
-		//console.log(event.data.data("video_doc"));
-		var splicer_video = event.data.data("video_doc");
-		var cur_video =  splicer_video.videos[splicer_video.current];
-		/*player.loadVideoById( {videoId:cur_video.vid,
-					startSeconds:cur_video.start + splicer_video.position - cur_video.position,
-					endSeconds:cur_video.start + cur_video.duration});*/
-	};
-	var add_video_button_click = function () {
-		if(!player)
-			return;
-		var $this = $(this);
-		console.log($this.data("videosplicerObj"));
-
-		// Send an xmlhttp request to test if the video id is valid
-		xmlhttp=new XMLHttpRequest();
-		var videoid = document.getElementById('vid').value;
-		xmlhttp.onreadystatechange=function() {
-			if (xmlhttp.readyState==4 && xmlhttp.status==200)
-    			{
-				var response = $.parseJSON(xmlhttp.responseText);
-			
-				if(response.items && response.items.length > 0) {
-    					player.cueVideoById(videoid);
-					player.playVideo();
-					console.log(player.getDuration());
-				}
-				else {
-					//TODO: show some pop up containing a message saying that the video id is not a valid one
-				}
-			}
-			else if (xmlhttp.readyState==4 && xmlhttp.status!=200)
-    			{
-    				//TODO: show some pop up containing a message saying that the video id is not a valid one
-			}
-		}
-		xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=id&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
-		xmlhttp.send();
-	}
-	
 	var methods = {
 	    init: function(opt) {
 			opt = opt || {};
@@ -172,7 +134,47 @@ var video_timer = null;
     	    	var atts = { id: "video_player" };//The id for the inserted element by the API
     	    	swfobject.embedSWF("http://www.youtube.com/apiplayer?version=3&enablejsapi=1&playerapiid=player1", "YTplayerHolder", "480", "295", "9", null, null, params, atts);
 		this.data("video_doc" , new CompositeVideo());
+
 		var video_doc = this.data("video_doc");
+
+		var on_video_switched = function(event) {
+			//console.log(event.data.data("video_doc"));
+			var splicer_video = event.data.data("video_doc");
+			var cur_video =  splicer_video.videos[splicer_video.current];
+		};
+		var add_video_button_click = function () {
+			if(!player)
+				return;
+			var $this = $(this);
+			console.log($this.data("videosplicerObj"));
+			console.log(methods);
+			// Send an xmlhttp request to test if the video id is valid
+			xmlhttp=new XMLHttpRequest();
+			var videoid = document.getElementById('vid').value;
+			xmlhttp.onreadystatechange=function() {
+				if (xmlhttp.readyState==4 && xmlhttp.status==200)
+    				{
+					var response = $.parseJSON(xmlhttp.responseText);
+					//console.log(response);
+					if(response.items && response.items.length > 0) {
+    						//TODO: this means that the video is valide, now add the video to the UI
+						// 1. position the timeline to the last position
+						// 2. add the duration of the new video to the timeline's max value (since by default the whole video will be considered the clip)
+						// 3. change the range selection bar
+						// 4. change the video_doc to make the new video it's current video. Also change it's position value
+					}
+					else {
+						//TODO: show some pop up containing a message saying that the video id is not a valid one
+					}
+				}
+				else if (xmlhttp.readyState==4 && xmlhttp.status!=200)
+    				{
+    					//TODO: show some pop up containing a message saying that the video id is not a valid one
+				}
+			}
+			xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=contentDetails&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
+			xmlhttp.send();
+		};
 		$(video_doc).bind("video_switched", this,  on_video_switched);
 
 		var $range_selector = $("#splicer_range_selector");
@@ -203,22 +205,32 @@ var video_timer = null;
 		};
 		var timeline_slider_slidestop = function(event, ui) {
 			if(player) {
-				//TODO: switch video if necessary, calculate index of video based on position,
+				//switch video if necessary, calculate index of video based on position,
 				var old_vid_ind = video_doc.current;
 				video_doc.Reposition($(this).slider("option","value"));
-				if(old_vid_ind != video_doc.current)
+				console.log( "Old range: from " + $range_selector.slider("option","values")[0] + " to " + $range_selector.slider("option","values")[1]);
+				if(old_vid_ind != video_doc.current) 
 				{
 					var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
 					player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid,
 							startSeconds:start_at,
 							endSeconds:video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration});
+					//TODO: at this point the player's metadata is still not loaded so the getDuration function will return 0				
+					var duration = player.getDuration();
+					$range_selector.slider("option","max",duration);
+			    		var left = video_doc.videos[video_doc.current].start; 
+			    		var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
+			    		console.log("New range: from " + left + " to " + right);
+			    		$range_selector.slider("option","values",[left, right]);
 				}
 					
 			}
+			player.seekTo(video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position);
 			if(video_doc.isPlaying) {
-				player.seekTo(video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position);
 				video_timer = setInterval(tick, 100);
 			}
+			else
+				player.pauseVideo();
 		}; 
 		var slider_onslide = function(event, ui) {
 			//TODO: finish this function, show the frame of the video
@@ -341,6 +353,32 @@ var video_timer = null;
 		//***************************************************************************
 
 		return this;
+	    },
+	    getDurationOfVideoThroughXmlHttpRequest: function(vid){
+		xmlhttp=new XMLHttpRequest();
+		var videoid = document.getElementById('vid').value;
+		xmlhttp.onreadystatechange=function() {
+			if (xmlhttp.readyState==4 && xmlhttp.status==200)
+    			{
+				var response = $.parseJSON(xmlhttp.responseText);
+				if(response.items && response.items.length > 0) {
+					var ret = 0;
+					var regex = /PT(\d+)M(\d+)S/i;
+					var time = response.items[0].contentDetails.duration.match(regex);
+					ret += (time[1] * 60 + time[2]);
+					return ret;
+				}
+				else {
+					return null;
+				}
+			}
+			else if (xmlhttp.readyState==4 && xmlhttp.status!=200)
+    			{
+    				return null;
+			}
+		}
+		xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=contentDetails&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
+		xmlhttp.send();	
 	    },
 	    loadVideos: function(videoDocObj) {
 		if(! (videoDocObj instanceof CompositeVideo)) return this;
