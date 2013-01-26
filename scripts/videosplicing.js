@@ -5,6 +5,7 @@
 //TODO: mark the time on the timeline where there's a video switch
 //TODO: find a way to have a handler for youtube player metadata onload to get the duration of the video
 //TODO: when all the videos finish playing, the player will stop at the last frame of the last video whereas the data will point to the first video such that changes to the range of the video will be applied to the first video but the user will feel like they were changing the last video
+//TODO: something's weird with the ranger slider when first started.
 
 var player;
 
@@ -245,6 +246,45 @@ var video_timer = null;
 		$range_selector.css({marginTop: "10px", width:"450px", marginLeft:"auto", marginRight:"auto"});
 		$timeline_slider.slider({step:0.1, slide: timeline_slider_onslide, start: timeline_slider_slidestart, stop: timeline_slider_slidestop});
 		$timeline_slider.css("margin-top", "50px");
+
+		console.log($range_selector.find("a.ui-slider-handle"));
+		$range_selector.find("a.ui-slider-handle").keydown(function(e) {
+			if(e.keyCode == 37) { // Left arrow key
+				if($(this).data().uiSliderHandleIndex == 0) {
+					// Left handle
+					var range = $range_selector.slider("option","values");
+					range[0] -= 0.25;
+					if(range[0] < 0) range[0] = 0;
+					$range_selector.slider("option", "values",range);
+				}
+				else {
+					// On the right handle
+					var range = $range_selector.slider("option","values");
+					range[1] -= 0.25;
+					if(range[1] < range[0]) range[1] = range[0];
+					$range_selector.slider("option", "values",range);
+				}
+			}
+			else if(e.keyCode == 39) { // Right arrow key
+				if($(this).data().uiSliderHandleIndex == 0) {
+					// On the left handle
+					var range = $range_selector.slider("option","values");
+					range[0] += 0.25;
+					if(range[0] >range[1]) range[0] = range[1];
+					$range_selector.slider("option", "values",range);
+				}
+				else {
+					// On the right handle
+					var range = $range_selector.slider("option","values");
+					range[1] += 0.25;
+					if(range[1] > $range_selector.slider("option","max")) range[1] = $range_selector.slider("option","max");
+					$range_selector.slider("option", "values",range);
+				}
+			}
+			
+			return false;
+		});
+
 		//$range_selector.slider("disable");
 		var $add_video_button = $("#splicer_add_video_button");
 		$add_video_button.data("videosplicerObj" , this);
@@ -355,15 +395,12 @@ var video_timer = null;
 			}
 		};
 		$("#play_button").click(play_button_onclick);
-		//******************************Test section*********************************
-/*
-		video_doc.AddVideo(new VideoClip({vid:"mYIfiQlfaas", start: 85.0, duration: 15.0}))
-					.AddVideo(new VideoClip({vid:"6tvUPFsaj5s", start: 25.0, duration: 15.0}))
-					.AddVideo(new VideoClip({vid:"W9t3mbv2Hd8", start: 115.0, duration: 30.0}));*/
-		//$timeline_slider.slider("option","max", video_doc.duration);
-		
-		//***************************************************************************
-
+		this.keypress(function(e) {
+			if(e.keyCode == 32) {
+				//TODO: space key pressed, pause or continue the video
+			}
+			console.log(e);
+		});
 		return this;
 	    },
 	    getDurationOfVideoThroughXmlHttpRequest: function(vid){
