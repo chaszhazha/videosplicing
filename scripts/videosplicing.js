@@ -125,12 +125,23 @@ var video_timer = null;
 				"<div id='splicer_time_markers'><span id=''></span></div>" + 
                 		"<div id='splicer_range_selector'></div>" +
 				"<button id='splicer_select_range_button'>Select range for video clip</button>" + 
-                		"<div id='timeline'><div id='splicer_timeline_slider'></div></div>");
+                		"<div id='timeline'><div id='splicer_timeline_slider'></div>" + 
+					"<div id='timeline_pane'> <div id='timeline_scroll_content'>Test</div> <div class='slider-wrapper'><div id='timeline_scrollbar'></div> </div></div>" + 
+				"</div>");
 		$("#vid").css({width:"200px"});
 		$("head").append("<style>" + 
 				"#video_container{margin:0 auto;  width:" + option.player_width + "px;}" + 
 				"#vid_input{margin:0 auto; width: 600px;}" + 
-				"#splicer_select_range_button{float: right; margin-top: 10px;}" + 
+				"#splicer_select_range_button{float: right; margin-top: 5px;}" + 
+				"div#timeline div#timeline_pane{ " + 
+					"-webkit-border-radius: 5px; -moz-border-radius: 5px; border-radius:5px;" + 
+					"border: 2px solid gray;" + 
+					"height:100px;" +
+					"margin-top: 20px" + 
+				"}" + 
+				".slider-wrapper{clear: left; padding: 0 4px 0 2px; margin: 0 -1px -1px -1px;}" + 
+				"#timeline_pane{overflow: hidden; width: 99%; float:left;}" +
+				"#timeline_scroll_content{width: 2440px; float: left;}" + 
 				"</style>");
 	    	var params = { allowScriptAccess: "always" };
     	    	var atts = { id: "video_player" };//The id for the inserted element by the API
@@ -243,11 +254,10 @@ var video_timer = null;
 			//console.log($(this).data("videosplicerObj"));
 		};
 		$range_selector.slider({range: true, slide: slider_onslide, step: 0.05});
-		$range_selector.css({marginTop: "10px", width:"450px", marginLeft:"auto", marginRight:"auto"});
+		$range_selector.css({marginTop: "5px", width:"450px", marginLeft:"auto", marginRight:"auto"});
 		$timeline_slider.slider({step:0.1, slide: timeline_slider_onslide, start: timeline_slider_slidestart, stop: timeline_slider_slidestop});
-		$timeline_slider.css("margin-top", "50px");
+		$timeline_slider.css("margin-top", "40px");
 
-		console.log($range_selector.find("a.ui-slider-handle"));
 		$range_selector.find("a.ui-slider-handle").keydown(function(e) {
 			if(e.keyCode == 37) { // Left arrow key
 				if($(this).data().uiSliderHandleIndex == 0) {
@@ -401,8 +411,20 @@ var video_timer = null;
 			}
 			console.log(e);
 		});
+		var $timeline_scroll_pane = $("#timeline_pane"), $timeline_scroll_content = $("#timeline_scroll_content");
+
+		var $timeline_scrollbar = $("#timeline_scrollbar").slider({slide: function( event, ui ) {
+        		if ( $timeline_scroll_content.width() > $timeline_scroll_pane.width() ) {
+          			$timeline_scroll_content.css( "margin-left", Math.round(ui.value / 100 * ( $timeline_scroll_pane.width() - $timeline_scroll_content.width() )) + "px" );
+        		} else {
+          			$timeline_scroll_content.css( "margin-left", 0 );
+        		}
+      		}});
+		
+
+
 		return this;
-	    },
+	    },//End of init,
 	    getDurationOfVideoThroughXmlHttpRequest: function(vid){
 		if(!vid.length || vid == "")
 			return null;
