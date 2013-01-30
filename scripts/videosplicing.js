@@ -196,7 +196,6 @@ var video_timer = null;
  		 * This function is called every 0.1 seconds when the video is playing. Used to update the ui's slider
  		 */
 		var tick = function() {
-			console.log(that.data("video_doc"));
 			var video_doc = that.data("video_doc");
 			video_doc.position = video_doc.videos[video_doc.current].position + player.getCurrentTime() - video_doc.videos[video_doc.current].start;
 			//console.log(this.position + " = " + player.getCurrentTime() + " - " + this.videos[this.current].start);
@@ -347,7 +346,6 @@ var video_timer = null;
 		};
 		$("#splicer_select_range_button").click(select_range_button_click);
 		var play_button_onclick = function() {
-			console.log(that.data("video_doc"));
 			var video_doc = that.data("video_doc");
 			//TODO: 1. If we are in the player's mode, then either not show the range selector or disable it and the "select range" button
 			//If it is in the editor's mode, then update the max value and reposition the two handles
@@ -499,7 +497,7 @@ var video_timer = null;
 							var regex = /PT(\d+)M(\d+)S/i;
 							var time = response.items[0].contentDetails.duration.match(regex);
 							var duration = (parseInt(time[1]) * 60 + parseInt(time[2]));
-							videoDocObj.videos[index].duration = duration;
+							videoDocObj.videos[index].video_length = duration;
 							if(index == 0) {
 								that.data("range_selector").slider("option", "max", duration);
 							}
@@ -518,14 +516,12 @@ var video_timer = null;
 				xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + value.vid + "&part=contentDetails,snippet&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
 				xmlhttp.send();
 			} );
-
 		}
 	    },
 	    onPlayerReady:function(callback) {
 		this.playerReadyFuncs.push(callback);
 	    }
 	};		
-
 	$.fn.videosplicer = function(method) {
 	    if(methods[method]) {
 		return methods[method].apply(this, Array.prototype.slice.call(arguments,1));
@@ -537,6 +533,5 @@ var video_timer = null;
 		$.error('Method ' + method + ' does not exist on jQuery.videosplicer');
 	    }
 	};
-
 })(jQuery);
 
