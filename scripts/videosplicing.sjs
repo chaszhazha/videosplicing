@@ -1,10 +1,13 @@
-// Note: In a javascript module, call back function won't get executed. So instead of letting the module call some function, return the function and load the module to call that function
 
-
-//TODO: jump to the next video (maybe by clicking on a video's icon in the timeline pane view)
+//TODO: fine tune the start and end frame with left and right arrow keys
+//TODO: jump to the next video
 //TODO: show a list of all the videos
 //TODO: mark the time on the timeline where there's a video switch
+//TODO: find a way to have a handler for youtube player metadata onload to get the duration of the video
 //TODO: when all the videos finish playing, the player will stop at the last frame of the last video whereas the data will point to the first video such that changes to the range of the video will be applied to the first video but the user will feel like they were changing the last video
+//TODO: something's weird with the ranger slider when first started.
+
+var player;
 
 function Link(source_doc, target_doc) {
 	this.source_doc = source_doc;
@@ -79,35 +82,33 @@ CompositeVideo.prototype.Reposition = function(new_pos)
 	this.position = new_pos;
 }
 
+// This function is left emtpy here because the actual implementation will cause the function to be called not in a recursive way but in an event driven way so that\
+// it will be called when not needed. So when you want to break out of the vicious cycle you just the function an empty body. It is declared here because the next function
+// onYoutubePlayerReady() need to call this function and onYoutubePlayerReady needs to be globally accessable per google youtube api 
+var playerStateChanged = function(state) {};
 
-var onYouTubePlayerReady = function(playerId){};
+var playerReadyFuncs = [];
+
+function onYouTubePlayerReady(playerId) {
+	console.log(playerId);
+	player = document.getElementById("video_player");
+	//player.cueVideoById("s2XzoA94Zws");
+	//player.playVideo();
+	player.style.margin = "0 auto";
+	player.addEventListener("onStateChange", "playerStateChanged");
+	//var tmp = $(player).data("videosplicerObj");
+	//console.log($(player).data("videosplicerObj"));
+	for(var i = 0; i < playerReadyFuncs.length; i++)
+		playerReadyFuncs[i]();
+}
+
+
 
 var video_timer = null;
-
 (function($){
 	var methods = {
 	    init: function(opt) {
-		//************************************* Where the magic happens ***********************************
-		var player;
 		var that = this;
-		this.playerReadyFuncs = [];
-		// This function is left emtpy here because the actual implementation will cause the function to be called not in a recursive way but in an event driven way so that\
-		// it will be called when not needed. So when you want to break out of the vicious cycle you just the function an empty body. It is declared here because the next function
-		// onYoutubePlayerReady() need to call this function and onYoutubePlayerReady needs to be globally accessable per google youtube api 
-		var playerStateChanged = function(state) {};
-		onYouTubePlayerReady = function(playerId) {
-			player = document.getElementById("video_player");
-			that.data("player",player);
-			//player.cueVideoById("s2XzoA94Zws");
-			//player.playVideo();
-			player.style.margin = "0 auto";
-			player.addEventListener("onStateChange", "playerStateChanged");
-			//var tmp = $(player).data("videosplicerObj");
-			//console.log($(player).data("videosplicerObj"));
-			for(var i = 0; i < that.playerReadyFuncs.length; i++)
-				that.playerReadyFuncs[i]();
-		};
-
 		opt = opt || {};
 		var default_opt = {player_height: 295, player_width:480};
 		var option = $.extend({}, default_opt, opt);
@@ -125,7 +126,7 @@ var video_timer = null;
                 		"<div id='splicer_range_selector'></div>" +
 				"<button id='splicer_select_range_button'>Select range for video clip</button>" + 
                 		"<div id='timeline'><div id='splicer_timeline_slider'></div>" + 
-					"<div id='timeline_pane'> <div id='timeline_scroll_content'></div> <div class='slider-wrapper'><div id='timeline_scrollbar'></div> </div></div>" + 
+					"<div id='timeline_pane'> <div id='timeline_scroll_content'>Test</div> <div class='slider-wrapper'><div id='timeline_scrollbar'></div> </div></div>" + 
 				"</div>");
 		$("#vid").css({width:"200px"});
 		$("head").append("<style>" + 
@@ -140,8 +141,7 @@ var video_timer = null;
 				"}" + 
 				".slider-wrapper{clear: left; padding: 0 4px 0 2px; margin: 0 -1px -1px -1px;}" + 
 				"#timeline_pane{overflow: hidden; width: 99%; float:left;}" +
-				"#timeline_scroll_content{width: 2440px; float: left; height: 80px}" + 
-				"div#timeline div#timeline_pane div#timeline_scrollcontent div{ float: left;}" + 
+				"#timeline_scroll_content{width: 2440px; float: left;}" + 
 				"</style>");
 	    	var params = { allowScriptAccess: "always" };
     	    	var atts = { id: "video_player" };//The id for the inserted element by the API
@@ -155,7 +155,7 @@ var video_timer = null;
 				return;
 			var $this = $(this);
 			// Send an xmlhttp request to test if the video id is valid
-			var xmlhttp=new XMLHttpRequest();
+			xmlhttp=new XMLHttpRequest();
 			var videoid = document.getElementById('vid').value;
 			xmlhttp.onreadystatechange=function() {
 				if (xmlhttp.readyState==4 && xmlhttp.status==200)
@@ -166,7 +166,7 @@ var video_timer = null;
     						//This means that the video is valide, now add the video to the UI
 						var regex = /PT(\d+)M(\d+)S/i;
 						var time = response.items[0].contentDetails.duration.match(regex);
-						var dur = (parseInt(time[1]) * 60 + parseInt(time[2]));
+						var dur = (time[1] * 60 + time[2]);
 						//TODO 
 						//1. position the timeline to the last position
 						// 2. add the duration of the new video to the timeline's max value (since by default the whole video will be considered the clip)
@@ -193,7 +193,6 @@ var video_timer = null;
  		 * This function is called every 0.1 seconds when the video is playing. Used to update the ui's slider
  		 */
 		var tick = function() {
-			console.log(that.data("video_doc"));
 			var video_doc = that.data("video_doc");
 			video_doc.position = video_doc.videos[video_doc.current].position + player.getCurrentTime() - video_doc.videos[video_doc.current].start;
 			//console.log(this.position + " = " + player.getCurrentTime() + " - " + this.videos[this.current].start);
@@ -228,7 +227,7 @@ var video_timer = null;
 							startSeconds:start_at,
 							endSeconds:video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration});				
 					if(video_doc.videos[video_doc.current].video_length == 0) {
-						 methods.getDurationOfVideoThroughXmlHttpRequest(video_doc.videos[video_doc.current].vid, video_doc.videos[video_doc.current].video_length);
+						video_doc.videos[video_doc.current].video_length = methods.getDurationOfVideoThroughXmlHttpRequest(video_doc.videos[video_doc.current].vid);
 						//console.log("Getting video duration through ajax");
 					}
 					var duration = video_doc.videos[video_doc.current].video_length;
@@ -344,7 +343,6 @@ var video_timer = null;
 		};
 		$("#splicer_select_range_button").click(select_range_button_click);
 		var play_button_onclick = function() {
-			console.log(that.data("video_doc"));
 			var video_doc = that.data("video_doc");
 			//TODO: 1. If we are in the player's mode, then either not show the range selector or disable it and the "select range" button
 			//If it is in the editor's mode, then update the max value and reposition the two handles
@@ -422,26 +420,17 @@ var video_timer = null;
           			$timeline_scroll_content.css( "margin-left", 0 );
         		}
       		}});
+		
 
-		//size scrollbar and handle proportionally to scroll distance
-		var sizeScrollBar = function() {
-			var remainder = $timeline_scroll_content.width() - $timeline_scroll_pane.width();
-			var proportion = remainder / $timeline_scroll_content.width();
-			var handleSize = $timeline_scroll_pane.width() - ( proportion * $timeline_scroll_pane.width() );
-			$timeline_scrollbar.find( ".ui-slider-handle" ).css({
-       			 	width: handleSize,
-        			"margin-left": -handleSize / 2,
-     		 	});
-		};
 
 		return this;
 	    },//End of init,
-	    getDurationOfVideoThroughXmlHttpRequest: function(vid, duration_property){
+	    getDurationOfVideoThroughXmlHttpRequest: function(vid){
 		if(!vid.length || vid == "")
 			return null;
-		var xmlhttp=new XMLHttpRequest();
+		xmlhttp=new XMLHttpRequest();
 		var videoid = document.getElementById('vid').value;
-
+		var duration;
 		xmlhttp.onreadystatechange=function() {
 			if (xmlhttp.readyState==4 && xmlhttp.status==200)
     			{
@@ -449,25 +438,25 @@ var video_timer = null;
 				if(response.items && response.items.length > 0) {
 					var regex = /PT(\d+)M(\d+)S/i;
 					var time = response.items[0].contentDetails.duration.match(regex);
-					duration_property = (parseInt(time[1]) * 60 + parseInt(time[2]));
+					duration = (time[1] * 60 + time[2]);
 					return;
 				}
 				else {
-					//TODO: show error
-					duration_property = null;
+					duration = null;
 					return
 				}
 			}
 			else if (xmlhttp.readyState==4 && xmlhttp.status!=200)
     			{
-				//TODO: show error
-    				duration_property = null;
+    				duration = null;
 				return;
 			}
 		}
 		xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=contentDetails&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
 		xmlhttp.send();
-
+		while(typeof duration == 'undefined')
+			console.log("While loop in getDurationOfVideoThroughXmlHttpRequest");
+		return duration;
 	    },
 	    loadVideos: function(videoDocObj) {
 		if(! (videoDocObj instanceof CompositeVideo)) return this;
@@ -476,46 +465,16 @@ var video_timer = null;
 		if(videoDocObj.videos.length > 0) {
 			this.data("range_selector").slider("option","max", videoDocObj.videos[0].video_length);
 			this.data("range_selector").slider("option", "values",[videoDocObj.videos[0].start, videoDocObj.videos[0].start + videoDocObj.videos[0].duration]);
-			this.data("player").loadVideoById({videoId:videoDocObj.videos[0].vid,
+			player.loadVideoById({videoId:videoDocObj.videos[0].vid,
 						startSeconds:videoDocObj.videos[0].start,
 						endSeconds:videoDocObj.videos[0].start + videoDocObj.videos[0].duration});
-			this.data("player").pauseVideo();
-			
-			//TODO: fetch each video's duration and the icon image
-			var that = this;
-			$.each(videoDocObj.videos, function(index, value) {
-				var xmlhttp=new XMLHttpRequest();
-				xmlhttp.onreadystatechange=function() {
-					if(xmlhttp.readyState == 4 && xmlhttp.status == 200)
-					{
-						var response = $.parseJSON(xmlhttp.responseText);
-						console.log(response);
-						if(response.items && response.items.length > 0) 
-						{
-							var regex = /PT(\d+)M(\d+)S/i;
-							var time = response.items[0].contentDetails.duration.match(regex);
-							var duration = (parseInt(time[1]) * 60 + parseInt(time[2]));
-							videoDocObj.videos[index].duration = duration;
-							if(index == 0) {
-								that.data("range_selector").slider("option", "max", duration);
-							}
-						}
-						else {
-							//TODO: response returned an empty array, video is not available, show error message 
-						}
-					}
-					else if (xmlhttp.readyState == 4){
-						//TODO: request failed, show message
-					}
-				};
-				xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + value.vid + "&part=contentDetails&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
-				xmlhttp.send();
-			} );
-
+			player.pauseVideo();
+			this.data("range_selector").slider("option", "max", player.getDuration());
+			//TODO: also validate that each video is valid and that the duration of the actual youtube video matches the data passed in
 		}
 	    },
 	    onPlayerReady:function(callback) {
-		this.playerReadyFuncs.push(callback);
+		playerReadyFuncs.push(callback);
 	    }
 	};		
 
@@ -532,4 +491,3 @@ var video_timer = null;
 	};
 
 })(jQuery);
-
