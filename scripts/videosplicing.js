@@ -5,6 +5,8 @@
 //TODO: show a list of all the videos
 //TODO: mark the time on the timeline where there's a video switch
 //TODO: when all the videos finish playing, the player will stop at the last frame of the last video whereas the data will point to the first video such that changes to the range of the video will be applied to the first video but the user will feel like they were changing the last video
+//TODO: red position vertical bar for timeline pane view.0
+//TODO: use svg graph in place for the button texts
 
 function Link(source_doc, target_doc) {
 	this.source_doc = source_doc;
@@ -135,13 +137,14 @@ var video_timer = null;
 				"div#timeline div#timeline_pane{ " + 
 					"-webkit-border-radius: 5px; -moz-border-radius: 5px; border-radius:5px;" + 
 					"border: 2px solid gray;" + 
-					"height:100px;" +
+					"height:120px;" +
 					"margin-top: 20px" + 
 				"}" + 
 				".slider-wrapper{clear: left; padding: 0 4px 0 2px; margin: 0 -1px -1px -1px;}" + 
 				"#timeline_pane{overflow: hidden; width: 99%; float:left;}" +
-				"#timeline_scroll_content{width: 2440px; float: left; height: 80px}" + 
+				"#timeline_scroll_content{width: 2440px; float: left; height: 100px}" + 
 				"div#timeline div#timeline_pane div#timeline_scrollcontent div{ float: left;}" + 
+				"div.video-icon{display:inline; float: left; margin: 2px 2px 2px 2px;}" + 
 				"</style>");
 	    	var params = { allowScriptAccess: "always" };
     	    	var atts = { id: "video_player" };//The id for the inserted element by the API
@@ -480,8 +483,9 @@ var video_timer = null;
 						startSeconds:videoDocObj.videos[0].start,
 						endSeconds:videoDocObj.videos[0].start + videoDocObj.videos[0].duration});
 			this.data("player").pauseVideo();
-			
-			//TODO: fetch each video's duration and the icon image
+			for(var i = 0; i < videoDocObj.videos.length; i++) {
+				this.find("div#timeline_pane div#timeline_scroll_content").append("<div class='video-icon'><img src='' alt='Video " + (i + 1) +"'/></div>");
+			}
 			var that = this;
 			$.each(videoDocObj.videos, function(index, value) {
 				var xmlhttp=new XMLHttpRequest();
@@ -490,7 +494,7 @@ var video_timer = null;
 					{
 						var response = $.parseJSON(xmlhttp.responseText);
 						console.log(response);
-						if(response.items && response.items.length > 0) 
+						if(response.items && response.items.length > 0) // Most likely the length will be one since we are only requesting with one specific video id
 						{
 							var regex = /PT(\d+)M(\d+)S/i;
 							var time = response.items[0].contentDetails.duration.match(regex);
@@ -499,6 +503,9 @@ var video_timer = null;
 							if(index == 0) {
 								that.data("range_selector").slider("option", "max", duration);
 							}
+							var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
+							var $vid_icon_img = that.find("div#timeline_pane div#timeline_scroll_content div.video-icon img");
+							$vid_icon_img[index].src = vid_thumbnail_url;
 						}
 						else {
 							//TODO: response returned an empty array, video is not available, show error message 
@@ -508,7 +515,7 @@ var video_timer = null;
 						//TODO: request failed, show message
 					}
 				};
-				xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + value.vid + "&part=contentDetails&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
+				xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + value.vid + "&part=contentDetails,snippet&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
 				xmlhttp.send();
 			} );
 
