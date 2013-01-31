@@ -156,11 +156,11 @@ var video_timer = null;
 		var add_video_button_click = function () {
 			if(!player)
 				return;
-			var $this = $(this);
 			// Send an xmlhttp request to test if the video id is valid
 			var xmlhttp=new XMLHttpRequest();
 			var videoid = document.getElementById('vid').value;
 			xmlhttp.onreadystatechange=function() {
+				var video_doc = that.data("video_doc");
 				if (xmlhttp.readyState==4 && xmlhttp.status==200)
     				{
 					var response = $.parseJSON(xmlhttp.responseText);
@@ -170,11 +170,13 @@ var video_timer = null;
 						var regex = /PT(\d+)M(\d+)S/i;
 						var time = response.items[0].contentDetails.duration.match(regex);
 						var dur = (parseInt(time[1]) * 60 + parseInt(time[2]));
-						//TODO 
-						//1. position the timeline to the last position
-						// 2. add the duration of the new video to the timeline's max value (since by default the whole video will be considered the clip)
-						// 3. change the range selection bar
-						// 4. change the video_doc to make the new video it's current video. Also change it's position value
+						video_doc.AddVideo(new VideoClip({vid:videoid, start:0.0, duration:dur, video_length:dur}));
+						var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
+						that.find("div#timeline_pane div#timeline_scroll_content")
+							.append("<div class='video-icon'><img src='" + vid_thumbnail_url + "' alt='Video " + video_doc.videos.length +"'/></div>");
+						//TODO : change the max for timeline slider
+						that.data("timeline_slider").slider("option","max", video_doc.duration);
+
 					}
 					else {
 						//TODO: show some pop up containing a message saying that the video id is not a valid one
@@ -185,7 +187,7 @@ var video_timer = null;
     					//TODO: show some pop up containing a message saying that the video id is notvideo_doc.current a valid one
 				} 
 			};
-			xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=contentDetails&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
+			xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=contentDetails,snippet&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
 			xmlhttp.send();
 		};
 
@@ -218,7 +220,12 @@ var video_timer = null;
 				    	video_timer = null;
 
 					//TODO: load the first video if there are more than 1 videos, also reset the handles
-
+					player.loadVideoById( {videoId:video_doc.videos[0].vid,
+							startSeconds:video_doc.videos[0].start});
+					player.pauseVideo();
+					$range_selector.slider("option","values",[video_doc.videos[0].start, video_doc.videos[0].start + video_doc.videos[0].duration]);
+					$range_selector.slider("option","max",video_doc.videos[0].video_length);
+					$timeline_slider.slider("option","value",0);
 					return;
 				}
 				else {
@@ -262,8 +269,7 @@ var video_timer = null;
 				{
 					var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
 					player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid,
-							startSeconds:start_at,
-							endSeconds:video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration});				
+							startSeconds:start_at});				
 					var duration = video_doc.videos[video_doc.current].video_length;
 			    		var left = video_doc.videos[video_doc.current].start; 
 			    		var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
@@ -368,6 +374,8 @@ var video_timer = null;
 			//Update the max value of the timeline slider
 			console.log("changing max of timeline slider from " + $timeline_slider.slider("option","max") + " to " + video_doc.duration)
 			$timeline_slider.slider("option","max", video_doc.duration);
+			if(video_doc.position > video_doc.duration)
+				video_doc.position = video_doc.duration;
 			console.log("Changing position of timeline slider from " + $timeline_slider.slider("option","value") + " to " + video_doc.position);
 			$timeline_slider.slider("option","value", video_doc.position);
 		};
