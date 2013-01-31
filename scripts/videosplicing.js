@@ -7,6 +7,7 @@
 //TODO: when all the videos finish playing, the player will stop at the last frame of the last video whereas the data will point to the first video such that changes to the range of the video will be applied to the first video but the user will feel like they were changing the last video
 //TODO: red position vertical bar for timeline pane view.0
 //TODO: use svg graph in place for the button texts
+//TODO: instead of setting the end time of one video thru the loadvideobyid function, have the timer monitor when to switch the video.
 
 function Link(source_doc, target_doc) {
 	this.source_doc = source_doc;
@@ -96,14 +97,13 @@ var video_timer = null;
 		// This function is left emtpy here because the actual implementation will cause the function to be called not in a recursive way but in an event driven way so that\
 		// it will be called when not needed. So when you want to break out of the vicious cycle you just the function an empty body. It is declared here because the next function
 		// onYoutubePlayerReady() need to call this function and onYoutubePlayerReady needs to be globally accessable per google youtube api 
-		var playerStateChanged = function(state) {};
+
 		onYouTubePlayerReady = function(playerId) {
 			player = document.getElementById("video_player");
 			that.data("player",player);
 			//player.cueVideoById("s2XzoA94Zws");
 			//player.playVideo();
 			player.style.margin = "0 auto";
-			player.addEventListener("onStateChange", "playerStateChanged");
 			//var tmp = $(player).data("videosplicerObj");
 			//console.log($(player).data("videosplicerObj"));
 			for(var i = 0; i < that.playerReadyFuncs.length; i++)
@@ -182,7 +182,7 @@ var video_timer = null;
 				}
 				else if (xmlhttp.readyState==4 && xmlhttp.status!=200)
     				{
-    					//TODO: show some pop up containing a message saying that the video id is not a valid one
+    					//TODO: show some pop up containing a message saying that the video id is notvideo_doc.current a valid one
 				} 
 			};
 			xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=contentDetails&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
@@ -196,11 +196,45 @@ var video_timer = null;
  		 * This function is called every 0.1 seconds when the video is playing. Used to update the ui's slider
  		 */
 		var tick = function() {
+			//console.log("tick");
 			var video_doc = that.data("video_doc");
 			video_doc.position = video_doc.videos[video_doc.current].position + player.getCurrentTime() - video_doc.videos[video_doc.current].start;
 			//console.log(this.position + " = " + player.getCurrentTime() + " - " + this.videos[this.current].start);
 			//** update the slider for playback position of the whole video doc
 			$timeline_slider.slider("option","value",video_doc.position);
+			//console.log(video_doc.position + 100);
+			//console.log(video_doc.videos[video_doc.current].position);
+			//console.log(video_doc.videos[video_doc.current].duration);
+			if(video_doc.position + 0.1 > video_doc.videos[video_doc.current].position + video_doc.videos[video_doc.current].duration)
+			{
+				// Switch point reached
+				if(video_doc.current == video_doc.videos.length -1)
+				{
+					// The last video finished playing, stop the timer and reset the current video to the first, also the handlers
+					video_doc.current = 0;
+				    	video_doc.position = 0.0;
+				    	video_doc.isPlaying = false;
+				    	clearInterval(video_timer);
+				    	video_timer = null;
+
+					//TODO: load the first video if there are more than 1 videos, also reset the handles
+
+					return;
+				}
+				else {
+					console.log("Switch to the next video");
+					//Swith to the next video, and change to range slider handles
+					video_doc.current++;
+					var left = video_doc.videos[video_doc.current].start; 
+			    		var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
+			    		//console.log(left + "<==>" + right);
+			    		$range_selector.slider("option","max",video_doc.videos[video_doc.current].video_length);
+			    		$range_selector.slider("option","values",[left, right]);
+					var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
+					player.loadVideoById( {videoId:video_doc.videos[video_doc.current].vid,
+							startSeconds:start_at});
+				}
+			}
 		};
 
 		
@@ -214,6 +248,7 @@ var video_timer = null;
 		var timeline_slider_slidestart = function(event, ui) {
 			if(video_timer) {
 				clearInterval(video_timer);
+				video_timer = null;
 			}
 		};
 		var timeline_slider_slidestop = function(event, ui) {
@@ -229,19 +264,11 @@ var video_timer = null;
 					player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid,
 							startSeconds:start_at,
 							endSeconds:video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration});				
-					if(video_doc.videos[video_doc.current].video_length == 0) {
-						 methods.getDurationOfVideoThroughXmlHttpRequest(video_doc.videos[video_doc.current].vid, video_doc.videos[video_doc.current].video_length);
-						//console.log("Getting video duration through ajax");
-					}
 					var duration = video_doc.videos[video_doc.current].video_length;
-					
 			    		var left = video_doc.videos[video_doc.current].start; 
 			    		var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
 			    		//console.log("New range: from " + left + " to " + right);
 					$range_selector.slider("option",{max: duration, values: [left,right]});
-					//$range_selector.slider("option","max",duration);
-					//$range_selector.slider("option","values",[left, right]);
-			    		
 				}
 					
 			}
@@ -359,53 +386,8 @@ var video_timer = null;
 			if(video_doc.position >= cur_video.position && video_doc.position < cur_video.position + cur_video.duration)
 				start = cur_video.start + video_doc.position - cur_video.position;
 			else	start = cur_video.start;
-			var end = cur_video.start + cur_video.duration;
-			console.log("Playing video from " + start + " to " + end);
-			player.loadVideoById( {videoId:cur_video.vid,
-						startSeconds:start,
-						endSeconds:end});
-			playerStateChanged = function(state) {
-			    var duration = player.getDuration();
-			    console.log("Player state changed. Total duration of video:" + duration);
-			    if(!video_doc.isPlaying) {
-				if(video_timer) {
-					clearInterval(video_timer);
-					video_timer = null;
-				}
-				playerStateChanged = function(state){};
-				return;
-			    }
-			   
-			    var left = video_doc.videos[video_doc.current].start; 
-			    var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
-			    //console.log(left + "<==>" + right);
-			    $range_selector.slider("option","max",duration);
-			    $range_selector.slider("option","values",[left, right]);
-			    if(state == 1) {
-			    	video_doc.isPlaying = true;
-			    	if(video_timer == null) {
-				    video_timer = setInterval( tick ,100);
-				}
-			    }
-			    else if((state == 2 || state == 0)) {
-			        console.log("Switched from video " + video_doc.current + " to video " + (video_doc.current + 1));
-				video_doc.current++;
-				if(video_doc.current == video_doc.videos.length) {
-				    video_doc.current = 0;
-				    video_doc.position = 0.0;
-				    video_doc.isPlaying = false;
-				    clearInterval(video_timer);
-				    video_timer = null;
-				    playerStateChanged = function(state){};
-				    return;
-				}
-
-				var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
-				player.loadVideoById( {videoId:video_doc.videos[video_doc.current].vid,
-							startSeconds:start_at,
-							endSeconds:video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration});
-			    }
-			}
+			//player.seekTo(start);
+			player.playVideo();
 		};
 		$("#play_button").click(play_button_onclick);
 		this.keypress(function(e) {
@@ -478,8 +460,7 @@ var video_timer = null;
 			this.data("range_selector").slider("option","max", videoDocObj.videos[0].video_length);
 			this.data("range_selector").slider("option", "values",[videoDocObj.videos[0].start, videoDocObj.videos[0].start + videoDocObj.videos[0].duration]);
 			this.data("player").loadVideoById({videoId:videoDocObj.videos[0].vid,
-						startSeconds:videoDocObj.videos[0].start,
-						endSeconds:videoDocObj.videos[0].start + videoDocObj.videos[0].duration});
+						startSeconds:videoDocObj.videos[0].start});
 			this.data("player").pauseVideo();
 			for(var i = 0; i < videoDocObj.videos.length; i++) {
 				this.find("div#timeline_pane div#timeline_scroll_content").append("<div class='video-icon'><img src='' alt='Video " + (i + 1) +"'/></div>");
