@@ -82,8 +82,9 @@ CompositeVideo.prototype.Reposition = function(new_pos)
 	this.position = new_pos;
 }
 
-
-var onYouTubePlayerReady = function(playerId){};
+// These two functions are needed by the youtube player and they need to be globally available, but they also need access to the plugin's data, so their definition come later inside of the plugin's difiniton
+var onYouTubePlayerReady;
+var onPlayerStateChange;
 
 var video_timer = null;
 
@@ -94,16 +95,19 @@ var video_timer = null;
 		var player;
 		var that = this;
 		this.playerReadyFuncs = [];
-		// This function is left emtpy here because the actual implementation will cause the function to be called not in a recursive way but in an event driven way so that\
-		// it will be called when not needed. So when you want to break out of the vicious cycle you just the function an empty body. It is declared here because the next function
-		// onYoutubePlayerReady() need to call this function and onYoutubePlayerReady needs to be globally accessable per google youtube api 
-
+		
+		onPlayerStateChange = function(state) {
+			if(state == 1 && !that.data("video_doc").isPlaying)
+			{
+				// This case is when the user clicks on the red play button that comes with the player
+				$play_button.trigger('click');
+			}
+		};
 		onYouTubePlayerReady = function(playerId) {
 			player = document.getElementById("video_player");
 			that.data("player",player);
-			//player.cueVideoById("s2XzoA94Zws");
-			//player.playVideo();
 			player.style.margin = "0 auto";
+			player.addEventListener("onStateChange", "onPlayerStateChange");
 			//var tmp = $(player).data("videosplicerObj");
 			//console.log($(player).data("videosplicerObj"));
 			for(var i = 0; i < that.playerReadyFuncs.length; i++)
@@ -219,10 +223,14 @@ var video_timer = null;
 				    	clearInterval(video_timer);
 				    	video_timer = null;
 
-					//TODO: load the first video if there are more than 1 videos, also reset the handles
-					player.loadVideoById( {videoId:video_doc.videos[0].vid,
+					// load the first video if there are more than 1 videos, also reset the handles
+					if(video_doc.videos.length != 1)
+						player.cueVideoById( {videoId:video_doc.videos[0].vid,
 							startSeconds:video_doc.videos[0].start});
+					else
+						player.seekTo(video_doc.videos[0].start);
 					player.pauseVideo();
+					
 					$range_selector.slider("option","values",[video_doc.videos[0].start, video_doc.videos[0].start + video_doc.videos[0].duration]);
 					$range_selector.slider("option","max",video_doc.videos[0].video_length);
 					$timeline_slider.slider("option","value",0);
@@ -339,7 +347,7 @@ var video_timer = null;
 
 		this.data("range_selector", $range_selector);
 		this.data("timeline_slider",$timeline_slider);
-		$("#play_button").data("videosplicerObj", this);
+		var $play_button = $("#play_button").data("videosplicerObj", this);
 		var stop_button_onclick = function() {
 			var video_doc = that.data("video_doc");
 			video_doc.isPlaying = false;
@@ -348,10 +356,16 @@ var video_timer = null;
 				clearInterval(video_timer);
 				video_timer = null;
 			}
-			player.pauseVideo();
 			video_doc.position = 0.0;
-			video_doc.current = 0.0;
 			//TODO: place timeline handle to the left most position, place the range selector handles to the first video's position
+			if(video_doc.current != 0)
+				player.loadVideoById({videoId:video_doc.videos[0].vid, startSeconds:video_doc.videos[0].start});
+			else	player.seekTo(video_doc.videos[0].start);
+			player.pauseVideo();
+			video_doc.current = 0.0;
+			$timeline_slider.slider("option","value",0);
+			$range_selector.slider("option","max",video_doc.videos[0].video_length);
+			$range_selector.slider("option","values",[ video_doc.videos[0].start , video_doc.videos[0].start + video_doc.videos[0].duration]);
 		};
 		var pause_button_onclick = function() {
 			var video_doc = that.data("video_doc");
@@ -397,7 +411,7 @@ var video_timer = null;
 			//player.seekTo(start);
 			player.playVideo();
 		};
-		$("#play_button").click(play_button_onclick);
+		$play_button.click(play_button_onclick);
 		this.keypress(function(e) {
 			if(e.keyCode == 32) {
 				//TODO: space key pressed, pause or continue the video
