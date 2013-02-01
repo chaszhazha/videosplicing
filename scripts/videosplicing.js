@@ -138,7 +138,7 @@ var video_timer = null;
                 		"<div id='splicer_range_selector'></div>" +
 				"<button id='splicer_select_range_button'>Select range for video clip</button>" + 
                 		"<div id='timeline'><div id='splicer_timeline_slider'></div>" + 
-					"<div id='timeline_pane'> <div id='timeline_scroll_content'></div> <div class='slider-wrapper'><div id='timeline_scrollbar'></div> </div></div>" + 
+					"<div id='timeline_pane'> <div id='timeline_scroll_content'><ul></ul></div> <div class='slider-wrapper'><div id='timeline_scrollbar'></div> </div></div>" + 
 				"</div>");
 		$("#vid").css({width:"200px"});
 		$("head").append("<style>" + 
@@ -157,8 +157,10 @@ var video_timer = null;
 				".playback-button svg{width:20px; height:20px;}" + 
 				".playback-button svg polygon{fill:black;}" + 
 				"#timeline_scroll_content{width: 2440px; float: left; height: 100px}" + 
+				"#timeline_scroll_content ul {list-style-type: none; margin-top:auto; margin-bottom:auto; padding:0;}" + 
+				"#timeline_scroll_content ul li{display:inline; float: left;}" + 
 				"div#timeline div#timeline_pane div#timeline_scrollcontent div{ float: left;}" + 
-				"div.video-icon{display:inline; float: left; margin: 2px 2px 2px 2px;}" + 
+				"div.video-icon{display:inline; float: left; margin: 4px;}" + 
 				"</style>");
 	    	var params = { allowScriptAccess: "always" };
     	    	var atts = { id: "video_player" };//The id for the inserted element by the API
@@ -186,8 +188,8 @@ var video_timer = null;
 						var dur = (parseInt(time[1]) * 60 + parseInt(time[2]));
 						video_doc.AddVideo(new VideoClip({vid:videoid, start:0.0, duration:dur, video_length:dur}));
 						var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
-						that.find("div#timeline_pane div#timeline_scroll_content")
-							.append("<div class='video-icon'><img src='" + vid_thumbnail_url + "' alt='Video " + video_doc.videos.length +"'/></div>");
+						that.find("div#timeline_pane div#timeline_scroll_content ul")
+							.append("<li><div class='video-icon'><img src='" + vid_thumbnail_url + "' alt='Video " + video_doc.videos.length +"'/></div></li>");
 						//TODO : change the max for timeline slider
 						that.data("timeline_slider").slider("option","max", video_doc.duration);
 
@@ -490,15 +492,18 @@ var video_timer = null;
 		this.data("video_doc", videoDocObj);
 		this.data("timeline_slider").slider("option","max", videoDocObj.duration);
 		if(videoDocObj.videos.length > 0) {
+			var that = this;
 			this.data("range_selector").slider("option","max", videoDocObj.videos[0].video_length);
 			this.data("range_selector").slider("option", "values",[videoDocObj.videos[0].start, videoDocObj.videos[0].start + videoDocObj.videos[0].duration]);
 			this.data("player").loadVideoById({videoId:videoDocObj.videos[0].vid,
 						startSeconds:videoDocObj.videos[0].start});
 			this.data("player").pauseVideo();
+			var $timeline_scroll_content = this.find("div#timeline_pane div#timeline_scroll_content ul");
 			for(var i = 0; i < videoDocObj.videos.length; i++) {
-				this.find("div#timeline_pane div#timeline_scroll_content").append("<div class='video-icon'><img src='' alt='Video " + (i + 1) +"'/></div>");
+				$timeline_scroll_content.append("<li><div class='video-icon'><img src='' alt='Video " + (i + 1) +"'/></div></li>");
 			}
-			var that = this;
+			$timeline_scroll_content.sortable({ distance:5, axis:"x", containment: that.find("div#timeline div#timeline_pane")});
+
 			$.each(videoDocObj.videos, function(index, value) {
 				var xmlhttp=new XMLHttpRequest();
 				xmlhttp.onreadystatechange=function() {
@@ -516,7 +521,7 @@ var video_timer = null;
 								that.data("range_selector").slider("option", "max", duration);
 							}
 							var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
-							var $vid_icon_img = that.find("div#timeline_pane div#timeline_scroll_content div.video-icon img");
+							var $vid_icon_img = that.find("div#timeline_pane div#timeline_scroll_content ul li div.video-icon img");
 							$vid_icon_img[index].src = vid_thumbnail_url;
 						}
 						else {
