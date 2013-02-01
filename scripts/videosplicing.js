@@ -123,9 +123,16 @@ var video_timer = null;
 				"</div>" + 
                 		"<div id='video_container'>" +
 					"<div id='YTplayerHolder'>You need Flash player 8+ and JavaScript enabled to view this video.</div>" + 
-					"<button id='play_button'>Play</button>" + 
-					"<button id='pause_button'>Pause</button>" + 
-					"<button id='stop_button'>Stop</button>" + 
+					"<button id='play_button' class='playback-button'><svg xmlns='http://www.w3.org/2000/svg' version='1.1'>" + 
+						"<polygon points='2,2 18,10 2,18'/>" + 
+					"</svg></button>" + 
+					"<button id='pause_button' class='playback-button'><svg xmlns='http://www.w3.org/2000/svg' version='1.1'>" + 
+						"<polygon points='3,2 8,2 8,18 3,18'/>" + 
+						"<polygon points='12,2 17,2 17,18 12,18'/>" + 
+					"</svg></button>" + 
+					"<button id='stop_button' class='playback-button'><svg xmlns='http://www.w3.org/2000/svg' version='1.1'>" + 
+						"<polygon points='2,2 18,2 18,18 2,18'/>" + 
+					"</svg></button>" + 
 				"</div> " + 
 				"<div id='splicer_time_markers'><span id=''></span></div>" + 
                 		"<div id='splicer_range_selector'></div>" +
@@ -146,6 +153,9 @@ var video_timer = null;
 				"}" + 
 				".slider-wrapper{clear: left; padding: 0 4px 0 2px; margin: 0 -1px -1px -1px;}" + 
 				"#timeline_pane{overflow: hidden; width: 99%; float:left;}" +
+				".playback-button{padding:2px 2px}" +
+				".playback-button svg{width:20px; height:20px;}" + 
+				".playback-button svg polygon{fill:black;}" + 
 				"#timeline_scroll_content{width: 2440px; float: left; height: 100px}" + 
 				"div#timeline div#timeline_pane div#timeline_scrollcontent div{ float: left;}" + 
 				"div.video-icon{display:inline; float: left; margin: 2px 2px 2px 2px;}" + 
@@ -412,6 +422,7 @@ var video_timer = null;
 			player.playVideo();
 		};
 		$play_button.click(play_button_onclick);
+
 		this.keypress(function(e) {
 			if(e.keyCode == 32) {
 				//TODO: space key pressed, pause or continue the video
@@ -494,7 +505,7 @@ var video_timer = null;
 					if(xmlhttp.readyState == 4 && xmlhttp.status == 200)
 					{
 						var response = $.parseJSON(xmlhttp.responseText);
-						console.log(response);
+						//console.log(response);
 						if(response.items && response.items.length > 0) // Most likely the length will be one since we are only requesting with one specific video id
 						{
 							var regex = /PT(\d+)M(\d+)S/i;
