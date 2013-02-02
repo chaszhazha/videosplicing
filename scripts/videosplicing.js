@@ -58,9 +58,16 @@ CompositeVideo.prototype.UpdateCurrentVideo = function(start, duration)
 	var old_duration = this.videos[this.current].duration;
 	var del = duration - old_duration;
 	this.duration += del;
+	if(start > this.position)
+	{
+		this.position = this.videos[this.current].position;
+	}
+	else
+	{
+		this.position += this.videos[this.current].start - start;
+	}
 	this.videos[this.current].duration = duration;
 	this.videos[this.current].start = start;
-
 	//Also update the position of the videos that come after the current video
 	var i ;
 	for(i= this.current + 1;i < this.videos.length; i++) {
@@ -97,10 +104,26 @@ var video_timer = null;
 		this.playerReadyFuncs = [];
 		
 		onPlayerStateChange = function(state) {
-			if(state == 1 && !that.data("video_doc").isPlaying)
+			var video_doc = that.data("video_doc");
+			console.log(state);
+			if(state == 1 && !video_doc.isPlaying)
 			{
 				// This case is when the user clicks on the red play button that comes with the player
 				$play_button.trigger('click');
+			}
+			if(state == 0 && video_doc.isPlaying)
+			{
+				/** Some video clip's end position might be the actual end of the whole video, and that end position most likely is a floating point number.
+				But the duration of the video that the youtube api returns is actually an integer. And the way that I am doing the monitoring of the boundary
+				of the video clips is to constantly updating a position value and synching it according to the actual play position of the video. So for example
+				if the second video starts at time 15 second from its 30th second, then every 0.1 second there will be a timer checking the position 
+				of the player to calculate the virtual position of the whole video document, and then add 0.1 to that value. And if the result exceeds the end position
+				then we either swith to the next video or if it is the last video then we stop the playback. Now if a video clip's end position is also the end
+				position of the original video and let's say  it's 187.16, the youtube api will actually return a duration of 188 of that video, and so 187.16 + 0.1 = 187.26 < 188,
+				so the timer will be running but it will not switch to the next video. But the player will fire a state changed event indicating that the playback
+				has ended, we can use that here
+				*/
+				switch_to_next_video(video_doc);
 			}
 		};
 		onYouTubePlayerReady = function(playerId) {
@@ -190,8 +213,14 @@ var video_timer = null;
 						var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
 						that.find("div#timeline_pane div#timeline_scroll_content ul")
 							.append("<li><div class='video-icon'><img src='" + vid_thumbnail_url + "' alt='Video " + video_doc.videos.length +"'/></div></li>");
-						//TODO : change the max for timeline slider
 						that.data("timeline_slider").slider("option","max", video_doc.duration);
+						if(video_doc.videos.length == 1)
+						{
+							player.loadVideoById({videoId:videoid, startSeconds:0});
+							player.pauseVideo();
+							$range_selector.slider("option",{max:dur, values:[0, dur]});
+							
+						}
 
 					}
 					else {
@@ -210,57 +239,59 @@ var video_timer = null;
 		var $range_selector = $("#splicer_range_selector");
 		var $timeline_slider = $("#splicer_timeline_slider");
 
+		var switch_to_next_video = function(video_doc){
+			if(video_doc.current == video_doc.videos.length -1)
+			{
+				// The last video finished playing, stop the timer and reset the current video to the first, also the handlers
+				video_doc.current = 0;
+			    	video_doc.position = 0.0;
+			    	video_doc.isPlaying = false;
+			    	clearInterval(video_timer);
+			    	video_timer = null;
+
+				// load the first video if there are more than 1 videos, also reset the handles
+				if(video_doc.videos.length != 1)
+					player.cueVideoById( {videoId:video_doc.videos[0].vid,
+						startSeconds:video_doc.videos[0].start} );
+				else
+					player.seekTo(video_doc.videos[0].start);
+				player.pauseVideo();
+					
+				$range_selector.slider("option","values",[video_doc.videos[0].start, video_doc.videos[0].start + video_doc.videos[0].duration]);
+				$range_selector.slider("option","max",video_doc.videos[0].video_length);
+				$timeline_slider.slider("option","value",0);
+				return;
+			}
+			else {
+				console.log("Switch to the next video");
+				//Swith to the next video, and change to range slider handles
+				video_doc.current++;
+				var left = video_doc.videos[video_doc.current].start; 
+		    		var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
+		    		//console.log(left + "<==>" + right);
+		    		$range_selector.slider("option","max",video_doc.videos[video_doc.current].video_length);
+		    		$range_selector.slider("option","values",[left, right]);
+				var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
+				player.loadVideoById( {videoId:video_doc.videos[video_doc.current].vid,
+						startSeconds:start_at});
+			}
+		};
+
 		/**
  		 * This function is called every 0.1 seconds when the video is playing. Used to update the ui's slider
  		 */
 		var tick = function() {
 			//console.log("tick");
 			var video_doc = that.data("video_doc");
-			video_doc.position = video_doc.videos[video_doc.current].position + player.getCurrentTime() - video_doc.videos[video_doc.current].start;
+			var player_time = player.getCurrentTime();
+			video_doc.position = video_doc.videos[video_doc.current].position + player_time - video_doc.videos[video_doc.current].start;
 			//console.log(this.position + " = " + player.getCurrentTime() + " - " + this.videos[this.current].start);
 			//** update the slider for playback position of the whole video doc
 			$timeline_slider.slider("option","value",video_doc.position);
-			//console.log(video_doc.position + 100);
-			//console.log(video_doc.videos[video_doc.current].position);
-			//console.log(video_doc.videos[video_doc.current].duration);
 			if(video_doc.position + 0.1 > video_doc.videos[video_doc.current].position + video_doc.videos[video_doc.current].duration)
 			{
 				// Switch point reached
-				if(video_doc.current == video_doc.videos.length -1)
-				{
-					// The last video finished playing, stop the timer and reset the current video to the first, also the handlers
-					video_doc.current = 0;
-				    	video_doc.position = 0.0;
-				    	video_doc.isPlaying = false;
-				    	clearInterval(video_timer);
-				    	video_timer = null;
-
-					// load the first video if there are more than 1 videos, also reset the handles
-					if(video_doc.videos.length != 1)
-						player.cueVideoById( {videoId:video_doc.videos[0].vid,
-							startSeconds:video_doc.videos[0].start});
-					else
-						player.seekTo(video_doc.videos[0].start);
-					player.pauseVideo();
-					
-					$range_selector.slider("option","values",[video_doc.videos[0].start, video_doc.videos[0].start + video_doc.videos[0].duration]);
-					$range_selector.slider("option","max",video_doc.videos[0].video_length);
-					$timeline_slider.slider("option","value",0);
-					return;
-				}
-				else {
-					console.log("Switch to the next video");
-					//Swith to the next video, and change to range slider handles
-					video_doc.current++;
-					var left = video_doc.videos[video_doc.current].start; 
-			    		var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
-			    		//console.log(left + "<==>" + right);
-			    		$range_selector.slider("option","max",video_doc.videos[video_doc.current].video_length);
-			    		$range_selector.slider("option","values",[left, right]);
-					var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
-					player.loadVideoById( {videoId:video_doc.videos[video_doc.current].vid,
-							startSeconds:start_at});
-				}
+				switch_to_next_video(video_doc);
 			}
 		};
 
@@ -313,7 +344,7 @@ var video_timer = null;
 		$range_selector.css({marginTop: "5px", width:"450px", marginLeft:"auto", marginRight:"auto"});
 		$timeline_slider.slider({step:0.1, slide: timeline_slider_onslide, start: timeline_slider_slidestart, stop: timeline_slider_slidestop});
 		$timeline_slider.css("margin-top", "40px");
-
+		
 		$range_selector.find("a.ui-slider-handle").keydown(function(e) {
 			if(e.keyCode == 37) { // Left arrow key
 				if($(this).data().uiSliderHandleIndex == 0) {
@@ -360,8 +391,11 @@ var video_timer = null;
 		this.data("range_selector", $range_selector);
 		this.data("timeline_slider",$timeline_slider);
 		var $play_button = $("#play_button").data("videosplicerObj", this);
+
 		var stop_button_onclick = function() {
 			var video_doc = that.data("video_doc");
+			if(video_doc.videos.length == 0)
+				return;
 			video_doc.isPlaying = false;
 			if(video_timer) 
 			{
@@ -395,6 +429,7 @@ var video_timer = null;
 		$(player).data("videosplicerObj", this);
 
 		var select_range_button_click = function() {
+			if(!player) return;
 			var video_doc = that.data("video_doc");
 			video_doc.UpdateCurrentVideo($range_selector.slider("option","values")[0], $range_selector.slider("option","values")[1] - $range_selector.slider("option","values")[0]);
 			//Update the max value of the timeline slider
@@ -403,6 +438,9 @@ var video_timer = null;
 			if(video_doc.position > video_doc.duration)
 				video_doc.position = video_doc.duration;
 			console.log("Changing position of timeline slider from " + $timeline_slider.slider("option","value") + " to " + video_doc.position);
+			//Check if the position of the video is out of the new selected range, if so, seek to the start of the clip
+			if(player.getCurrentTime() < video_doc.videos[video_doc.current].start || player.getCurrentTime() >= video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration)
+				player.seekTo(video_doc.videos[video_doc.current].start);
 			$timeline_slider.slider("option","value", video_doc.position);
 		};
 		$("#splicer_select_range_button").click(select_range_button_click);
@@ -410,7 +448,7 @@ var video_timer = null;
 			var video_doc = that.data("video_doc");
 			//TODO: 1. If we are in the player's mode, then either not show the range selector or disable it and the "select range" button
 			//If it is in the editor's mode, then update the max value and reposition the two handles
-			if(video_doc.isPlaying)
+			if(video_doc.isPlaying || video_doc.videos.length == 0)
 				return;			
 			video_doc.isPlaying = true;
 			video_timer = setInterval( tick ,100);
@@ -431,8 +469,17 @@ var video_timer = null;
 			}
 			console.log(e);
 		});
-		var $timeline_scroll_pane = $("#timeline_pane"), $timeline_scroll_content = $("#timeline_scroll_content");
 
+		var $timeline_scroll_pane = $("#timeline_pane"), $timeline_scroll_content = $("#timeline_scroll_content");
+		
+		var timeline_item_update = function(event, ui) {
+			//console.log("update");
+		};
+		var timeline_item_change = function(event, ui) {
+			//console.log("change");
+		};
+
+		$timeline_scroll_content.sortable({ distance:5, axis:"x", containment: $timeline_scroll_pane});
 		var $timeline_scrollbar = $("#timeline_scrollbar").slider({slide: function( event, ui ) {
         		if ( $timeline_scroll_content.width() > $timeline_scroll_pane.width() ) {
           			$timeline_scroll_content.css( "margin-left", Math.round(ui.value / 100 * ( $timeline_scroll_pane.width() - $timeline_scroll_content.width() )) + "px" );
@@ -502,7 +549,6 @@ var video_timer = null;
 			for(var i = 0; i < videoDocObj.videos.length; i++) {
 				$timeline_scroll_content.append("<li><div class='video-icon'><img src='' alt='Video " + (i + 1) +"'/></div></li>");
 			}
-			$timeline_scroll_content.sortable({ distance:5, axis:"x", containment: that.find("div#timeline div#timeline_pane")});
 
 			$.each(videoDocObj.videos, function(index, value) {
 				var xmlhttp=new XMLHttpRequest();
