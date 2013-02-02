@@ -2,12 +2,10 @@
 
 
 //TODO: jump to the next video (maybe by clicking on a video's icon in the timeline pane view)
-//TODO: show a list of all the videos
 //TODO: mark the time on the timeline where there's a video switch
-//TODO: when all the videos finish playing, the player will stop at the last frame of the last video whereas the data will point to the first video such that changes to the range of the video will be applied to the first video but the user will feel like they were changing the last video
 //TODO: red position vertical bar for timeline pane view.0
 //TODO: use svg graph in place for the button texts
-//TODO: instead of setting the end time of one video thru the loadvideobyid function, have the timer monitor when to switch the video.
+//TODO: combine the play button and the pause button
 
 function Link(source_doc, target_doc) {
 	this.source_doc = source_doc;
@@ -58,14 +56,9 @@ CompositeVideo.prototype.UpdateCurrentVideo = function(start, duration)
 	var old_duration = this.videos[this.current].duration;
 	var del = duration - old_duration;
 	this.duration += del;
-	if(start > this.position)
-	{
-		this.position = this.videos[this.current].position;
-	}
-	else
-	{
-		this.position += this.videos[this.current].start - start;
-	}
+
+	this.position += this.videos[this.current].start - start;
+	if(this.position < this.videos[this.current].position)	this.position = this.videos[this.current].position;
 	this.videos[this.current].duration = duration;
 	this.videos[this.current].start = start;
 	//Also update the position of the videos that come after the current video
@@ -110,6 +103,7 @@ var video_timer = null;
 			{
 				// This case is when the user clicks on the red play button that comes with the player
 				$play_button.trigger('click');
+				$play_button.find("#play_svg").css("display","none"),end().find("#pause_svg").css("display","inline");
 			}
 			if(state == 0 && video_doc.isPlaying)
 			{
@@ -124,6 +118,9 @@ var video_timer = null;
 				has ended, we can use that here
 				*/
 				switch_to_next_video(video_doc);
+				console.log("Ahahahahaha");
+				$play_button.find("#play_svg").css("display","inline"),end().find("#pause_svg").css("display","none");
+				
 			}
 		};
 		onYouTubePlayerReady = function(playerId) {
@@ -146,13 +143,13 @@ var video_timer = null;
 				"</div>" + 
                 		"<div id='video_container'>" +
 					"<div id='YTplayerHolder'>You need Flash player 8+ and JavaScript enabled to view this video.</div>" + 
-					"<button id='play_button' class='playback-button'><svg xmlns='http://www.w3.org/2000/svg' version='1.1'>" + 
-						"<polygon points='2,2 18,10 2,18'/>" + 
-					"</svg></button>" + 
-					"<button id='pause_button' class='playback-button'><svg xmlns='http://www.w3.org/2000/svg' version='1.1'>" + 
-						"<polygon points='3,2 8,2 8,18 3,18'/>" + 
-						"<polygon points='12,2 17,2 17,18 12,18'/>" + 
-					"</svg></button>" + 
+					"<button id='play_button' class='playback-button'>" + 
+						"<svg xmlns='http://www.w3.org/2000/svg' version='1.1' id='play_svg'><polygon points='2,2 18,10 2,18'/></svg>" + 
+						"<svg xmlns='http://www.w3.org/2000/svg' version='1.1' id='pause_svg' style='display:none;'>" + 
+							"<polygon points='3,2 8,2 8,18 3,18'/>" + 
+							"<polygon points='12,2 17,2 17,18 12,18'/>" + 
+						"</svg>" +
+					"</button>" + 
 					"<button id='stop_button' class='playback-button'><svg xmlns='http://www.w3.org/2000/svg' version='1.1'>" + 
 						"<polygon points='2,2 18,2 18,18 2,18'/>" + 
 					"</svg></button>" + 
@@ -260,6 +257,7 @@ var video_timer = null;
 				$range_selector.slider("option","values",[video_doc.videos[0].start, video_doc.videos[0].start + video_doc.videos[0].duration]);
 				$range_selector.slider("option","max",video_doc.videos[0].video_length);
 				$timeline_slider.slider("option","value",0);
+				$play_button.find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
 				return;
 			}
 			else {
@@ -412,18 +410,8 @@ var video_timer = null;
 			$timeline_slider.slider("option","value",0);
 			$range_selector.slider("option","max",video_doc.videos[0].video_length);
 			$range_selector.slider("option","values",[ video_doc.videos[0].start , video_doc.videos[0].start + video_doc.videos[0].duration]);
+			$play_button.find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
 		};
-		var pause_button_onclick = function() {
-			var video_doc = that.data("video_doc");
-			video_doc.isPlaying = false;
-			if(video_timer) 
-			{
-				clearInterval(video_timer);
-				video_timer = null;
-			}
-			player.pauseVideo();
-		};
-		$("#pause_button").click(pause_button_onclick);
 		$("#stop_button").click(stop_button_onclick);	
 			
 		$(player).data("videosplicerObj", this);
@@ -448,8 +436,20 @@ var video_timer = null;
 			var video_doc = that.data("video_doc");
 			//TODO: 1. If we are in the player's mode, then either not show the range selector or disable it and the "select range" button
 			//If it is in the editor's mode, then update the max value and reposition the two handles
-			if(video_doc.isPlaying || video_doc.videos.length == 0)
-				return;			
+			if(video_doc.videos.length == 0)
+				return;	
+			if(video_doc.isPlaying)
+			{//Pause
+				video_doc.isPlaying = false;
+				if(video_timer) 
+				{
+					clearInterval(video_timer);
+					video_timer = null;
+				}
+				player.pauseVideo();
+				$(this).find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
+				return;
+			}		
 			video_doc.isPlaying = true;
 			video_timer = setInterval( tick ,100);
 			
@@ -460,6 +460,7 @@ var video_timer = null;
 			else	start = cur_video.start;
 			//player.seekTo(start);
 			player.playVideo();
+			$(this).find("#play_svg").css("display","none").end().find("#pause_svg").css("display","inline");
 		};
 		$play_button.click(play_button_onclick);
 
