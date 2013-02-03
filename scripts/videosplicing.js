@@ -180,7 +180,8 @@ var video_timer = null;
 				"#timeline_scroll_content ul {list-style-type: none; margin-top:auto; margin-bottom:auto; padding:0;}" + 
 				"#timeline_scroll_content ul li{display:inline; float: left;}" + 
 				"div#timeline div#timeline_pane div#timeline_scrollcontent div{ float: left;}" + 
-				"div.video-icon{display:inline; float: left; margin: 4px;}" + 
+				"div.video-icon{display:inline; float: left; margin: 4px 6px;}" + 
+				"#timeline li.timeline-sortable-highlight {border: 2px solid #fcefa1;width: 116px; height: 90px; margin: 4px 6px;background: #fbf9ee; padding:0;}" +
 				"</style>");
 	    	var params = { allowScriptAccess: "always" };
     	    	var atts = { id: "video_player" };//The id for the inserted element by the API
@@ -203,6 +204,11 @@ var video_timer = null;
 					//console.log(response);
 					if(response.items && response.items.length > 0) {
     						//This means that the video is valide, now add the video to the UI
+						if($range_selector.slider("option","disabled"))
+						{
+							$range_selector.slider("enable");
+							$timeline_slider.slider("enable");
+						}
 						var regex = /PT(\d+)M(\d+)S/i;
 						var time = response.items[0].contentDetails.duration.match(regex);
 						var dur = (parseInt(time[1]) * 60 + parseInt(time[2]));
@@ -216,7 +222,6 @@ var video_timer = null;
 							player.loadVideoById({videoId:videoid, startSeconds:0});
 							player.pauseVideo();
 							$range_selector.slider("option",{max:dur, values:[0, dur]});
-							
 						}
 
 					}
@@ -253,7 +258,6 @@ var video_timer = null;
 				else
 					player.seekTo(video_doc.videos[0].start);
 				player.pauseVideo();
-					
 				$range_selector.slider("option","values",[video_doc.videos[0].start, video_doc.videos[0].start + video_doc.videos[0].duration]);
 				$range_selector.slider("option","max",video_doc.videos[0].video_length);
 				$timeline_slider.slider("option","value",0);
@@ -339,9 +343,11 @@ var video_timer = null;
 			//console.log($(this).data("videosplicerObj"));
 		};
 		$range_selector.slider({range: true, slide: slider_onslide, step: 0.05});
+		$range_selector.slider("disable");
 		$range_selector.css({marginTop: "5px", width:"450px", marginLeft:"auto", marginRight:"auto"});
 		$timeline_slider.slider({step:0.1, slide: timeline_slider_onslide, start: timeline_slider_slidestart, stop: timeline_slider_slidestop});
 		$timeline_slider.css("margin-top", "40px");
+		$timeline_slider.slider("disable");
 		
 		$range_selector.find("a.ui-slider-handle").keydown(function(e) {
 			if(e.keyCode == 37) { // Left arrow key
@@ -419,6 +425,7 @@ var video_timer = null;
 		var select_range_button_click = function() {
 			if(!player) return;
 			var video_doc = that.data("video_doc");
+			if(video_doc.videos.length == 0) return;
 			video_doc.UpdateCurrentVideo($range_selector.slider("option","values")[0], $range_selector.slider("option","values")[1] - $range_selector.slider("option","values")[0]);
 			//Update the max value of the timeline slider
 			console.log("changing max of timeline slider from " + $timeline_slider.slider("option","max") + " to " + video_doc.duration)
@@ -472,15 +479,10 @@ var video_timer = null;
 		});
 
 		var $timeline_scroll_pane = $("#timeline_pane"), $timeline_scroll_content = $("#timeline_scroll_content");
-		
-		var timeline_item_update = function(event, ui) {
-			//console.log("update");
-		};
-		var timeline_item_change = function(event, ui) {
-			//console.log("change");
-		};
 
-		$timeline_scroll_content.sortable({ distance:5, axis:"x", containment: $timeline_scroll_pane});
+		$timeline_scroll_content.find("ul").sortable({helper:"clone", distance:5, containment: $timeline_scroll_pane, change:methods.timeline_sortable_onchange, stop: methods.timeline_sortable_onstop, placeholder:"timeline-sortable-highlight"})
+				.data("video_doc", video_doc);
+
 		var $timeline_scrollbar = $("#timeline_scrollbar").slider({slide: function( event, ui ) {
         		if ( $timeline_scroll_content.width() > $timeline_scroll_pane.width() ) {
           			$timeline_scroll_content.css( "margin-left", Math.round(ui.value / 100 * ( $timeline_scroll_pane.width() - $timeline_scroll_content.width() )) + "px" );
@@ -535,12 +537,28 @@ var video_timer = null;
 		xmlhttp.send();
 
 	    },
+	    timeline_sortable_onchange: function(event, ui) {
+		//console.log("sortable change");
+	    },
+	    timeline_sortable_onstop : function(event, ui) {
+		//event.target is the ul element
+
+	    	//TODO: rearrange the order of the video clips
+		// 1. change the position of the video clips
+		var video_doc = $(event.target).data("video_doc");
+		for(var i = 0; i < video_doc.videos.length; i++)
+		{
+			
+		}
+		// 2. sort the videos array
+		// 3. change the value of current and reposition the timeline slider handle
+	    },
 	    loadVideos: function(videoDocObj) {
 		if(! (videoDocObj instanceof CompositeVideo)) return this;
+		var that = this;
 		this.data("video_doc", videoDocObj);
 		this.data("timeline_slider").slider("option","max", videoDocObj.duration);
 		if(videoDocObj.videos.length > 0) {
-			var that = this;
 			this.data("range_selector").slider("option","max", videoDocObj.videos[0].video_length);
 			this.data("range_selector").slider("option", "values",[videoDocObj.videos[0].start, videoDocObj.videos[0].start + videoDocObj.videos[0].duration]);
 			this.data("player").loadVideoById({videoId:videoDocObj.videos[0].vid,
@@ -550,7 +568,6 @@ var video_timer = null;
 			for(var i = 0; i < videoDocObj.videos.length; i++) {
 				$timeline_scroll_content.append("<li><div class='video-icon'><img src='' alt='Video " + (i + 1) +"'/></div></li>");
 			}
-
 			$.each(videoDocObj.videos, function(index, value) {
 				var xmlhttp=new XMLHttpRequest();
 				xmlhttp.onreadystatechange=function() {
@@ -560,6 +577,10 @@ var video_timer = null;
 						//console.log(response);
 						if(response.items && response.items.length > 0) // Most likely the length will be one since we are only requesting with one specific video id
 						{
+							if(that.data("timeline_slider").slider("option","disabled")) {
+								that.data("timeline_slider").slider("enable");
+								that.data("range_selector").slider("enable");
+							}
 							var regex = /PT(\d+)M(\d+)S/i;
 							var time = response.items[0].contentDetails.duration.match(regex);
 							var duration = (parseInt(time[1]) * 60 + parseInt(time[2]));
