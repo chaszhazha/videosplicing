@@ -504,9 +504,12 @@ var video_timer = null;
 			if(video_doc.videos.length == 1) return;
 			video_doc.videos[0] = $($(event.target).find("li")[0]).data("videoclip");
 			video_doc.videos[0].position = 0;
-			if(video_doc.videos[0].isCurrent)
-				position = player.getCurrentTime() - video_doc.videos[0].start;
-			var position = 0, position_counter = video_doc.videos[0].duration; // The playback position of the composite video
+			var position, position_counter = video_doc.videos[0].duration; // The playback position of the composite video
+			if($($(event.target).find("li")[0]).data("videoclip").isCurrent) {
+				position = player.getCurrentTime() - $($(event.target).find("li")[0]).data("videoclip").start;
+				video_doc.current = 0;
+			}
+			
 			for(var i = 1; i < video_doc.videos.length; i++)
 			{
 				video_doc.videos[i] = $($(event.target).find("li")[i]).data("videoclip");
@@ -519,6 +522,7 @@ var video_timer = null;
 			}
 			// reposition the timeline slider handle
 			console.log(position);
+			console.log(video_doc.current);
 			$timeline_slider.slider("option","value", position);
 	    	};
 		var $timeline_scroll_pane = $("#timeline_pane"), $timeline_scroll_content = $("#timeline_scroll_content");
