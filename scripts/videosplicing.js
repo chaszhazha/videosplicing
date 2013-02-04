@@ -1,11 +1,7 @@
-// Note: In a javascript module, call back function won't get executed. So instead of letting the module call some function, return the function and load the module to call that function
-
 
 //TODO: jump to the next video (maybe by clicking on a video's icon in the timeline pane view)
 //TODO: mark the time on the timeline where there's a video switch
 //TODO: red position vertical bar for timeline pane view.0
-//TODO: use svg graph in place for the button texts
-//TODO: combine the play button and the pause button
 
 function Link(source_doc, target_doc) {
 	this.source_doc = source_doc;
