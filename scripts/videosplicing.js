@@ -25,6 +25,7 @@ function VideoClip(param) {
 	this.duration = option.duration;//Duration of the clip of the video
 	this.position = option.position;
 	this.video_length = option.video_length; //Duration of the youtube video 
+	this.isCurrent = false;
 }
 
 
@@ -82,6 +83,15 @@ CompositeVideo.prototype.Reposition = function(new_pos)
 	this.position = new_pos;
 }
 
+CompositeVideo.prototype.copy = function(video_doc) {
+	this.videos = [];
+	this.links = [];
+	for(var i = 0; i < video_doc.videos.length; i++) {
+		this.videos[i] = video_doc.videos[i];
+		this.links[i] = new Link(this, this.videos[i]);
+	}
+	this.duration = video_doc.duration;
+}
 // These two functions are needed by the youtube player and they need to be globally available, but they also need access to the plugin's data, so their definition come later inside of the plugin's difiniton
 var onYouTubePlayerReady;
 var onPlayerStateChange;
@@ -219,6 +229,7 @@ var video_timer = null;
 						that.data("timeline_slider").slider("option","max", video_doc.duration);
 						if(video_doc.videos.length == 1)
 						{
+							video_doc.videos[0].isCurrent = true;
 							player.loadVideoById({videoId:videoid, startSeconds:0});
 							player.pauseVideo();
 							$range_selector.slider("option",{max:dur, values:[0, dur]});
@@ -245,7 +256,9 @@ var video_timer = null;
 			if(video_doc.current == video_doc.videos.length -1)
 			{
 				// The last video finished playing, stop the timer and reset the current video to the first, also the handlers
+				video_doc.videos[video_doc.current].isCurrent = false;
 				video_doc.current = 0;
+				video_doc.videos[0].isCurrent = true;
 			    	video_doc.position = 0.0;
 			    	video_doc.isPlaying = false;
 			    	clearInterval(video_timer);
@@ -267,7 +280,9 @@ var video_timer = null;
 			else {
 				console.log("Switch to the next video");
 				//Swith to the next video, and change to range slider handles
+				video_doc.videos[video_doc.current].isCurrent = false;
 				video_doc.current++;
+				video_doc.videos[video_doc.current].isCurrent = true;
 				var left = video_doc.videos[video_doc.current].start; 
 		    		var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
 		    		//console.log(left + "<==>" + right);
@@ -477,10 +492,38 @@ var video_timer = null;
 			}
 			console.log(e);
 		});
+		
+	    	var timeline_sortable_onchange = function(event, ui) {
+			//console.log("sortable change");
+	    	}
+		var timeline_sortable_onstop = function(event, ui) {
+			//event.target is the ul element
 
+	    		//TODO: rearrange the order of the video clips
+			var video_doc = $(event.target).data("video_doc");
+			if(video_doc.videos.length == 1) return;
+			video_doc.videos[0] = $($(event.target).find("li")[0]).data("videoclip");
+			video_doc.videos[0].position = 0;
+			if(video_doc.videos[0].isCurrent)
+				position = player.getCurrentTime() - video_doc.videos[0].start;
+			var position = 0, position_counter = video_doc.videos[0].duration; // The playback position of the composite video
+			for(var i = 1; i < video_doc.videos.length; i++)
+			{
+				video_doc.videos[i] = $($(event.target).find("li")[i]).data("videoclip");
+				video_doc.videos[i].position = video_doc.videos[i - 1].position + video_doc.videos[i - 1].duration;
+				if(video_doc.videos[i].isCurrent) {
+					video_doc.current = i;
+					position = position_counter + player.getCurrentTime() - video_doc.videos[i].start;
+				}
+				position_counter += video_doc.videos[i].duration;
+			}
+			// reposition the timeline slider handle
+			console.log(position);
+			$timeline_slider.slider("option","value", position);
+	    	};
 		var $timeline_scroll_pane = $("#timeline_pane"), $timeline_scroll_content = $("#timeline_scroll_content");
 
-		$timeline_scroll_content.find("ul").sortable({helper:"clone", distance:5, containment: $timeline_scroll_pane, change:methods.timeline_sortable_onchange, stop: methods.timeline_sortable_onstop, placeholder:"timeline-sortable-highlight"})
+		$timeline_scroll_content.find("ul").sortable({helper:"clone", distance:5, containment: $timeline_scroll_pane, change:methods.timeline_sortable_onchange, stop: timeline_sortable_onstop, placeholder:"timeline-sortable-highlight"})
 				.data("video_doc", video_doc);
 
 		var $timeline_scrollbar = $("#timeline_scrollbar").slider({slide: function( event, ui ) {
@@ -537,26 +580,11 @@ var video_timer = null;
 		xmlhttp.send();
 
 	    },
-	    timeline_sortable_onchange: function(event, ui) {
-		//console.log("sortable change");
-	    },
-	    timeline_sortable_onstop : function(event, ui) {
-		//event.target is the ul element
-
-	    	//TODO: rearrange the order of the video clips
-		// 1. change the position of the video clips
-		var video_doc = $(event.target).data("video_doc");
-		for(var i = 0; i < video_doc.videos.length; i++)
-		{
-			
-		}
-		// 2. sort the videos array
-		// 3. change the value of current and reposition the timeline slider handle
-	    },
 	    loadVideos: function(videoDocObj) {
 		if(! (videoDocObj instanceof CompositeVideo)) return this;
 		var that = this;
-		this.data("video_doc", videoDocObj);
+		this.data("video_doc").copy(videoDocObj);
+		this.data("video_doc").videos[0].isCurrent = true;
 		this.data("timeline_slider").slider("option","max", videoDocObj.duration);
 		if(videoDocObj.videos.length > 0) {
 			this.data("range_selector").slider("option","max", videoDocObj.videos[0].video_length);
@@ -568,6 +596,8 @@ var video_timer = null;
 			for(var i = 0; i < videoDocObj.videos.length; i++) {
 				$timeline_scroll_content.append("<li><div class='video-icon'><img src='' alt='Video " + (i + 1) +"'/></div></li>");
 			}
+			var vid_icon = this.find("div#timeline_pane div#timeline_scroll_content ul li");
+			var vid_icon_img = vid_icon.find("div.video-icon img");
 			$.each(videoDocObj.videos, function(index, value) {
 				var xmlhttp=new XMLHttpRequest();
 				xmlhttp.onreadystatechange=function() {
@@ -589,8 +619,9 @@ var video_timer = null;
 								that.data("range_selector").slider("option", "max", duration);
 							}
 							var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
-							var $vid_icon_img = that.find("div#timeline_pane div#timeline_scroll_content ul li div.video-icon img");
-							$vid_icon_img[index].src = vid_thumbnail_url;
+							
+							vid_icon_img[index].src = vid_thumbnail_url;
+							$(vid_icon[index]).data("videoclip",videoDocObj.videos[index]);
 						}
 						else {
 							//TODO: response returned an empty array, video is not available, show error message 
