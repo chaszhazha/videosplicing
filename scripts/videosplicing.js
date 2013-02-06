@@ -364,6 +364,7 @@ var video_timer = null;
 					console.log("Showing annotation on start of a video clip");
 					var $annotation = show_annotation(video_doc.annotations[i]);
 					video_doc.annotations_shown.push($annotation);
+					video_doc.annotations[i].displayed = true;
 				}
 			}
 		};
@@ -427,30 +428,45 @@ var video_timer = null;
 		};
 		var timeline_slider_slidestop = function(event, ui) {
 			var video_doc = that.data("video_doc");
-			if(player) {
-				//switch video if necessary, calculate index of video based on position,
-				var old_vid_ind = video_doc.current;
-				video_doc.Reposition($(this).slider("option","value"));
-				//console.log( "Old range: from " + $range_selector.slider("option","values")[0] + " to " + $range_selector.slider("option","values")[1]);
-				if(old_vid_ind != video_doc.current) 
-				{
-					var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
-					player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid,
-							startSeconds:start_at});				
-					var duration = video_doc.videos[video_doc.current].video_length;
-			    		var left = video_doc.videos[video_doc.current].start; 
-			    		var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
-			    		//console.log("New range: from " + left + " to " + right);
-					$range_selector.slider("option",{max: duration, values: [left,right]});
-				}
-					
+			//switch video if necessary, calculate index of video based on position,
+			var old_vid_ind = video_doc.current;
+			video_doc.Reposition($(this).slider("option","value"));
+			//console.log( "Old range: from " + $range_selector.slider("option","values")[0] + " to " + $range_selector.slider("option","values")[1]);
+			if(old_vid_ind != video_doc.current) 
+			{
+				var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
+				player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid,
+						startSeconds:start_at});				
+				var duration = video_doc.videos[video_doc.current].video_length;
+			    	var left = video_doc.videos[video_doc.current].start; 
+			    	var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
+			    	//console.log("New range: from " + left + " to " + right);
+				$range_selector.slider("option",{max: duration, values: [left,right]});
 			}
-			player.seekTo(video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position);
+			var video_pos = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
+			player.seekTo(video_pos);
 			if(video_doc.isPlaying) {
 				video_timer = setInterval(tick, 100);
 			}
 			else
 				player.pauseVideo();
+			// annotations
+			video_doc.annotations = video_doc.videos[video_doc.current].annotations.slice(0);
+			for(var i = 0; i < video_doc.annotations_shown.length; i++)
+				video_doc.annotations_shown[i].remove();
+			video_doc.annotations_shown = [];
+			for(var i = 0; i < video_doc.annotations.length; i++)
+			{
+				if(video_doc.annotations[i].end <= video_pos)
+					video_doc.annotations[i].displayed = true;
+				else if(video_doc.annotations[i].position < video_pos && video_doc.annotations[i].end > video_pos)
+				{
+					console.log("Showing annotation on start of a video clip");
+					var $annotation = show_annotation(video_doc.annotations[i]);
+					video_doc.annotations_shown.push($annotation);
+					video_doc.annotations[i].displayed = true;
+				}
+			}
 		}; 
 		var slider_onslide = function(event, ui) {
 			//TODO: finish this function, show the frame of the video
