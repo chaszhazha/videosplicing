@@ -38,18 +38,32 @@ function CompositeVideo() { // Composite video class
 	this.isPlaying = false;
 }
 
-CompositeVideo.prototype.AddVideo = function(video_clip)
+CompositeVideo.prototype.AddVideo = function(arg)
 {
-	if(!video_clip || !(video_clip instanceof VideoClip))
-	{
-		console.error("Argument need to be an instance of VideoClip");
+	if(!arg) {
+		console.error("Cannot accept empty arguments");
 		return this;
 	}
-	video_clip.position = this.duration;
-	this.videos.push(video_clip);
-	this.videolinks.push(new Link(this, video_clip));
-	this.duration += video_clip.duration;
-	return this;
+	if(arg instanceof VideoClip)
+	{
+		arg.position = this.duration;
+		this.videos.push(arg);
+		this.videolinks.push(new Link(this, arg));
+		this.duration += arg.duration;
+	}
+	else if(arg instanceof Array)
+	{
+		for(var i = 0; i < arg.length; i++)
+		{
+			 this.AddVideo(arg[i]);
+		}
+		return this;
+	}
+	else
+	{
+		console.error("Unacceptable argument: " + arg);
+		return this;
+	}
 }
 
 CompositeVideo.prototype.UpdateCurrentVideo = function(start, duration) 
@@ -85,10 +99,9 @@ CompositeVideo.prototype.Reposition = function(new_pos)
 
 CompositeVideo.prototype.copy = function(video_doc) {
 	this.videos = [];
-	this.links = [];
+	this.videolinks = [];
 	for(var i = 0; i < video_doc.videos.length; i++) {
 		this.videos[i] = video_doc.videos[i];
-		this.links[i] = new Link(this, this.videos[i]);
 	}
 	this.duration = video_doc.duration;
 }
@@ -100,12 +113,20 @@ CompositeVideo.prototype.getLinks = function() {
 	//TODO
 }
 
-function VideoAnnotation() {
-	this.content = "";
-	this.duration = 0;
-	this.position = 0;
-	this.end = 0;
-	this.rect = {top:0, bottom:0, left: 0, right:0};
+function VideoAnnotation(a) {
+	var default_args = {content: "", duration: 10, position:0, top:0, bottom:0,left: 0, right:0, opacity: 0.6, background:"#555555", foreground: "#ffffff"};
+	var args = $.extend({}, default_args, a);
+	this.content = args.content;
+	this.duration = args.duration;
+	this.position = args.position; // This should be the position that the annotation will show up in the timeline of the whole video.
+	this.rect = {top:args.top, bottom:args.bottom, left: args.left, right:args.right, width: args.right - args.left, height: args.bottom - args.top};
+	this.rect.width = this.rect.width > 0 ? this.rect.width : 0;
+	this.rect.height = this.rect.height > 0 ? this.rect.height : 0;
+	this.opacity = args.opacity;
+	this.background = args.background;
+	this.foreground = args.foreground;
+	this.duration = args.duration;
+	this.end = this.position + this.duration;
 }
 
 
@@ -223,14 +244,22 @@ var video_timer = null;
 
 		var show_annotation = function(a) {
 			// annotation should be an object that has properties like text, rect location and size, opacity, start_position, end_position  etc
-			var default_annotation = {opacity:0.6, top:20, left:20, width:100, height:100};
-			var annotation = $.extend({}, default_annotation, a);
-			var $annotation = $("<div class = 'annotation'></div>");
-			$annotation.data("anntation",a);
+			var default_annotation = {opacity:0.6, rect: {top:20, left:20, width:100, height:100}, content:""};
+			var annotation = $.extend(true, {}, default_annotation, a);
+			var $annotation = $("<div class = 'annotation'>" + annotation.content +"</div>");
 			$player_wrapper.append($annotation);
-			$annotation.css({opacity:annotation.opacity, top:annotation.top + "px", left: annotation.left + "px", width: annotation.width + "px", height: annotation.height + "px"});
+			console.log("content added to div#player_wrapper with width " + annotation.rect.width + "px and height " + annotation.rect.height + "px");
+			$annotation.data("annotation",annotation);
+			$annotation.css({opacity:annotation.opacity, top:annotation.rect.top + "px", left: annotation.rect.left + "px",
+				 width: annotation.rect.width + "px", height: annotation.rect.height + "px", background: annotation.background, color:annotation.foreground});
 			return $annotation;
 		};
+		
+		/* After removing an element, its associated data will also be removed
+		var $annotation = show_annotation();
+		$annotation.remove();
+		console.log($annotation.data("annotation")); // This should be undefined at this point, but $annotation still has the html content
+		//*/
 
 		var add_video_button_click = function () {
 			if(!player)
@@ -288,6 +317,7 @@ var video_timer = null;
 			for(var i = 0; i < video_doc.annotations_shown.length; i++) {
 				video_doc.annotations_shown[i].remove();
 			}
+			video_doc.annotations_shown = [];
 			if(video_doc.current == video_doc.videos.length -1)
 			{
 				// The last video finished playing, stop the timer and reset the current video to the first, also the handlers
@@ -331,6 +361,7 @@ var video_timer = null;
 			for(var i = 0; i < video_doc.annotations.length; i++) {
 				if(video_doc.annotations[i].position < video_doc.videos[video_doc.current].start && video_doc.annotations[i].end > video_doc.videos[video_doc.current].end)
 				{
+					console.log("Showing annotation on start of a video clip");
 					var $annotation = show_annotation(video_doc.annotations[i]);
 					video_doc.annotations_shown.push($annotation);
 				}
@@ -342,9 +373,33 @@ var video_timer = null;
  		 */
 		var tick = function() {
 			//console.log("tick");
-			//TODO: check the annotations to see if there are annotations to be shown
+			//check the annotations to see if there are annotations to be shown
 			var video_doc = that.data("video_doc");
 			var player_time = player.getCurrentTime();
+
+			//First check if there are new annotations to show
+			for(var i = 0; i < video_doc.annotations.length; i++)
+			{
+				if(typeof video_doc.annotations[i].displayed =='undefined')
+					console.log();
+				if(( typeof video_doc.annotations[i].displayed =='undefined') && video_doc.annotations[i].position < player_time && video_doc.annotations[i].end > player_time)
+				{
+					var $annotation = show_annotation(video_doc.annotations[i]);
+					video_doc.annotations_shown.push($annotation);		
+					video_doc.annotations[i].displayed = true;
+				}
+			}
+			
+			//Second check if displayed annotations need to disappear
+			for(var i = 0; i < video_doc.annotations_shown.length; i++)
+			{
+				var annotation = video_doc.annotations_shown[i].data("annotation");
+				if(annotation && annotation.end < player_time)
+				{
+					video_doc.annotations_shown[i].remove();
+				}
+			}
+
 			video_doc.position = video_doc.videos[video_doc.current].position + player_time - video_doc.videos[video_doc.current].start;
 			//console.log(this.position + " = " + player.getCurrentTime() + " - " + this.videos[this.current].start);
 			//** update the slider for playback position of the whole video doc
