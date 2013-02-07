@@ -189,7 +189,7 @@ var video_timer = null;
 					"<span>Type video id here:</span><input type='text' id='vid'></input><button id='splicer_add_video_button'>Add video</button>" + 
 				"</div>" + 
                 		"<div id='video_container'>" +
-					"<div id='player_wrapper'><div id='YTplayerHolder'>You need Flash player 8+ and JavaScript enabled to view this video.</div></div>" + 
+					"<div id='player_wrapper'><div id='YTplayerHolder'>You need Flash player 8+ and JavaScript enabled to view this video.</div><div id='player_overlay'> </div></div>" + 
 					"<button id='play_button' class='playback-button'>" + 
 						"<svg xmlns='http://www.w3.org/2000/svg' version='1.1' id='play_svg'><polygon points='2,2 18,10 2,18'/></svg>" + 
 						"<svg xmlns='http://www.w3.org/2000/svg' version='1.1' id='pause_svg' style='display:none;'>" + 
@@ -200,7 +200,7 @@ var video_timer = null;
 					"<button id='stop_button' class='playback-button'><svg xmlns='http://www.w3.org/2000/svg' version='1.1'>" + 
 						"<polygon points='2,2 18,2 18,18 2,18'/>" + 
 					"</svg></button>" + 
-					"<button id='annotate_button' >Annotate</button>" + 
+					"<button id='annotate_button' >Annotate</button><button id='select_annotation_region_button'>Select Region</button><button id='cancel_region_selection_button'>Cancel</button>" + 
 				"</div> " + 
 				"<div id='splicer_time_markers'><span id=''></span></div>" + 
                 		"<div id='splicer_range_selector'></div>" +
@@ -229,26 +229,33 @@ var video_timer = null;
 				"#timeline_scroll_content ul li{display:inline; float: left;}" + 
 				"div#timeline div#timeline_pane div#timeline_scrollcontent div{ float: left;}" + 
 				"div.video-icon{display:inline; float: left; margin: 4px 6px;}" + 
-				"div#player_wrapper {position:relative;}" + 
+				"div#player_overlay {position:absolute; top:0}" + 
+				"div#player_wrapper {position: relative}" + 
 				"button#annotate_button {float:right;} " + 
+				"#select_annotation_region_button, #cancel_region_selection_button{display: none; float: right;}" + 
 				".annotation { background: #444444; position:absolute;}" + 
+				".annotation_region{position: absolute; border-style:dashed; border-width:2px;}" +
+				".annotation_region_bg{background: steelblue; opacity:0.6;}" +  
 				"#timeline li.timeline-sortable-highlight {border: 2px solid #fcefa1;width: 116px; height: 90px; margin: 4px 6px;background: #fbf9ee; padding:0;}" +
 				"</style>");
 	    	var params = { allowScriptAccess: "always" };
     	    	var atts = { id: "video_player" };//The id for the inserted element by the API
-    	    	swfobject.embedSWF("http://www.youtube.com/apiplayer?version=3&enablejsapi=1&playerapiid=player1", "YTplayerHolder", "480", "295", "9", null, null, params, atts);
+    	    	swfobject.embedSWF("http://www.youtube.com/apiplayer?version=3&enablejsapi=1&playerapiid=player1", "YTplayerHolder", option.player_width, option.player_height, "9", null, null, params, atts);
 		this.data("video_doc" , new CompositeVideo());
 
 		var video_doc = this.data("video_doc");
 		var $player_wrapper = $("div#player_wrapper");
+		var $player_overlay = $("div#player_overlay");
+		$player_overlay.css({width:option.player_width, height:option.player_height});
+		
 
 		var show_annotation = function(a) {
 			// annotation should be an object that has properties like text, rect location and size, opacity, start_position, end_position  etc
 			var default_annotation = {opacity:0.6, rect: {top:20, left:20, width:100, height:100}, content:""};
 			var annotation = $.extend(true, {}, default_annotation, a);
 			var $annotation = $("<div class = 'annotation'>" + annotation.content +"</div>");
-			$player_wrapper.append($annotation);
-			console.log("content added to div#player_wrapper with width " + annotation.rect.width + "px and height " + annotation.rect.height + "px");
+			$player_overlay.append($annotation);
+			//console.log("content added to div#player_wrapper with width " + annotation.rect.width + "px and height " + annotation.rect.height + "px");
 			$annotation.data("annotation",annotation);
 			$annotation.css({opacity:annotation.opacity, top:annotation.rect.top + "px", left: annotation.rect.left + "px",
 				 width: annotation.rect.width + "px", height: annotation.rect.height + "px", background: annotation.background, color:annotation.foreground});
@@ -461,7 +468,7 @@ var video_timer = null;
 					video_doc.annotations[i].displayed = true;
 				else if(video_doc.annotations[i].position < video_pos && video_doc.annotations[i].end > video_pos)
 				{
-					console.log("Showing annotation on start of a video clip");
+					//console.log("Showing annotation on start of a video clip");
 					var $annotation = show_annotation(video_doc.annotations[i]);
 					video_doc.annotations_shown.push($annotation);
 					video_doc.annotations[i].displayed = true;
@@ -640,13 +647,75 @@ var video_timer = null;
 			//console.log(video_doc.current);
 			$timeline_slider.slider("option","value", position);
 	    	};
+		
+		var first_click = {x:0, y:0};
+		var $region_border;
+		var $region_bg;
+		var player_overlay_mousemove = function(event) {
+			if(! $region_border) return;
+			//console.log($player_overlay.offset());
+			var top = Math.min(first_click.y, event.pageY - $player_overlay.offset().top);
+			var left = Math.min(first_click.x, event.pageX - $player_overlay.offset().left);
+			var bottom = Math.max(first_click.y, event.pageY - $player_overlay.offset().top);
+			var right = Math.max(first_click.x, event.pageX - $player_overlay.offset().left);
+			var width = right - left;
+			var height = bottom - top;
+			$region_bg.css({top: top, left:left, width:width + "px", height: height + "px"});
+			$region_border.css({top: top, left:left, width:width + "px", height: height + "px"});
+		};
+		var player_overlay_mousewait = function(event) {
+			var pos = {x:event.pageX - $player_overlay.offset().left, y: event.pageY - $player_overlay.offset().top};
+			if( (first_click.x - pos.x) * (first_click.x - pos.x) + (first_click.y - pos.y) * (first_click.y - pos.y) > 25)
+			{
+				$player_overlay.unbind("mousemove", player_overlay_mousemove);
+				$player_overlay.unbind("mousemove", player_overlay_mousewait);
+				$player_overlay.mousemove(player_overlay_mousemove);
+				$region_border = $("<div class='annotation_region'><div class='annotation_region_bg'></div></div>");
+				$region_bg = $region_border.find(".annotation_region_bg");
+				$player_overlay.append($region_border);
+				$region_border.css({width:0, height:0, top:first_click.y, left:first_click.x});
+				$select_annotation_region_button.removeAttr("disabled");
+			}
+		};
+		var player_overlay_mousedown = function(event) {
+			if($region_border)	$region_border.remove();
+			$select_annotation_region_button.attr("disabled", "disabled");
+			$player_overlay.mousemove(player_overlay_mousewait);
+			//console.log(event);
+			first_click.x = event.pageX - $player_overlay.offset().left;
+			first_click.y = event.pageY - $player_overlay.offset().top;
+			
+
+		};
+		var player_overlay_mouseup = function(event) {
+			$player_overlay.unbind("mousemove", player_overlay_mousemove);
+			$player_overlay.unbind("mousemove", player_overlay_mousewait);
+			//$select_annotation_region_button.removeAttr("disabled");
+		};
+		var player_overlay_mouseleave = function(event) {
+			
+		};
+
+		var $annotate_button = $("button#annotate_button", this);
+		var $select_annotation_region_button = $("#select_annotation_region_button", this);
+		var $cancel_region_selection_button = $("#cancel_region_selection_button", this)
 		var annotate_button_onclick = function() {
+			$player_overlay.mousedown(player_overlay_mousedown);
+			$player_overlay.mouseup(player_overlay_mouseup);
+			$player_overlay.mouseleave(player_overlay_mouseleave);
+			$player_overlay.css("cursor", "crosshair");
+			$annotate_button.css("display","none");
+			$select_annotation_region_button.css("display","inline");
+			$select_annotation_region_button.attr("disabled", "disabled");
+			$cancel_region_selection_button.css("display", "inline");
+			
+			
 			//TODO: 1. pause the video play back
 			// 2. let user choose annotation area
 			// 3. show up text input
 			// 4. associate
 		};
-		$("button#annotate_button").click(annotate_button_onclick);
+		$annotate_button.click(annotate_button_onclick);
 
 		var $timeline_scroll_pane = $("#timeline_pane"), $timeline_scroll_content = $("#timeline_scroll_content");
 		
