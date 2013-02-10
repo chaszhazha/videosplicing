@@ -235,7 +235,7 @@ var video_timer = null;
 				"#select_annotation_region_button, #cancel_region_selection_button{display: none; float: right;}" + 
 				".annotation { background: #444444; position:absolute;}" + 
 				".annotation_region{position: absolute; border-style:dashed; border-width:2px;}" +
-				".annotation_region_bg{background: steelblue; opacity:0.6;}" +  
+				".annotation_region_bg{background: steelblue; opacity:0.6; cursor:default;}" +  
 				"#timeline li.timeline-sortable-highlight {border: 2px solid #fcefa1;width: 116px; height: 90px; margin: 4px 6px;background: #fbf9ee; padding:0;}" +
 				"</style>");
 	    	var params = { allowScriptAccess: "always" };
@@ -651,6 +651,18 @@ var video_timer = null;
 		var first_click = {x:0, y:0};
 		var $region_border;
 		var $region_bg;
+		var first_region_click = {x:0, y:0};
+		var last_region_click = {x:0, y:0};
+		var region_mousemove = function(event) {};
+		var region_mousewait = function(event) {
+			
+		};
+		var region_mousedown = function(event) {
+			first_region_click.x = event.offsetX;
+			first_region_click.y = event.offsetY;
+			$region_bg.mousemove(region_mousewait);
+		};		
+		
 		var player_overlay_mousemove = function(event) {
 			if(! $region_border) return;
 			//console.log($player_overlay.offset());
@@ -672,6 +684,7 @@ var video_timer = null;
 				$player_overlay.mousemove(player_overlay_mousemove);
 				$region_border = $("<div class='annotation_region'><div class='annotation_region_bg'></div></div>");
 				$region_bg = $region_border.find(".annotation_region_bg");
+				$region_bg.mousedown(region_mousedown);
 				$player_overlay.append($region_border);
 				$region_border.css({width:0, height:0, top:first_click.y, left:first_click.x});
 				$select_annotation_region_button.removeAttr("disabled");
