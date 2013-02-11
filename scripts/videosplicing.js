@@ -200,7 +200,7 @@ var video_timer = null;
 					"<button id='stop_button' class='playback-button'><svg xmlns='http://www.w3.org/2000/svg' version='1.1'>" + 
 						"<polygon points='2,2 18,2 18,18 2,18'/>" + 
 					"</svg></button>" + 
-					"<button id='annotate_button' >Annotate</button><button id='select_annotation_region_button'>Select Region</button><button id='cancel_region_selection_button'>Cancel</button>" + 
+					"<button id='annotate_button' >Annotate</button><button id='annotation_done_button'>Done</button><button id='cancel_region_selection_button'>Cancel</button>" + 
 				"</div> " + 
 				"<div id='splicer_time_markers'><span id=''></span></div>" + 
                 		"<div id='splicer_range_selector'></div>" +
@@ -232,7 +232,7 @@ var video_timer = null;
 				"div#player_overlay {position:absolute; top:0}" + 
 				"div#player_wrapper {position: relative}" + 
 				"button#annotate_button {float:right;} " + 
-				"#select_annotation_region_button, #cancel_region_selection_button{display: none; float: right;}" + 
+				"#annotation_done_button, #cancel_region_selection_button{display: none; float: right;}" + 
 				".annotation { background: #444444; position:absolute;}" + 
 				".annotation_region{position: absolute; border-style:dashed; border-width:2px;}" +
 				".annotation_region_bg{background: steelblue; opacity:0.6; cursor:move;}" +  
@@ -670,7 +670,6 @@ var video_timer = null;
 			$region_border.css({top: top + "px", left: left + "px"});
 			last_region_click.x = event.pageX;
 			last_region_click.y = event.pageY;
-			//console.log();
 		};
 		var region_mousewait = function(event) {
 			if( (event.pageX - first_region_click.x) * (event.pageX - first_region_click.x) + (event.pageY - first_region_click.y) * (event.pageY - first_region_click.y) >= 25)
@@ -687,11 +686,38 @@ var video_timer = null;
 				$player_overlay.mousemove(region_mousemove);
 			}
 		};
+
+		var region_doubleclick = function(event) {
+			$region_bg.unbind("mousemove");
+			var $textarea = $('<textarea></textarea>');
+			$textarea.mousedown(function() {$textarea.focus(); return false;});
+			//$textarea.mousemove(function() {return false;});
+			$region_bg.append($textarea);
+			$textarea.css({width:"100%", height:"100%"});
+			$textarea.resizable({
+			    resize: function() {
+				//TODO: resize the selected region
+			    }
+			});
+			$textarea.focus();
+			$textarea.keydown(function() {return false;}); // Prevent the plugin getting the keydown event
+			var $textarea_wrapper = $textarea.parent();
+			$textarea_wrapper.css({margin:"0", padding:"1px"});
+			//$textarea_wrapper.mousemove(function() {return false;});
+			$textarea_wrapper.find(".ui-resizable-handle").mousedown( function() {console.log("resizable handle");});
+			$textarea.bind("resize", function() {console.log("resizing")});
+			$textarea.blur(function() {
+				//TODO: remove the textarea and add the text to the containing div
+			});
+		};
 		var region_mousedown = function(event) {
 			//Since we only case about how much the mouse has moved, we can just use the whole page as the coordination reference
 			first_region_click.x = event.pageX;
 			first_region_click.y = event.pageY;
 			$region_bg.mousemove(region_mousewait);
+			
+			$region_bg.mousedown(region_doubleclick);
+			setTimeout(function(){$region_bg.unbind("mousedown", region_doubleclick)}, 600);
 			return false;
 		};	
 		
@@ -726,12 +752,10 @@ var video_timer = null;
 				$region_bg.mouseup(region_mouseup);
 				$player_overlay.append($region_border);
 				$region_border.css({width:0, height:0, top:first_click.y, left:first_click.x});
-				$select_annotation_region_button.removeAttr("disabled");
+				$annotation_done_button.removeAttr("disabled");
 			}
 		};
 		var player_overlay_mousedown = function(event) {
-			if($region_border)	$region_border.remove();
-			$select_annotation_region_button.attr("disabled", "disabled");
 			$player_overlay.mousemove(player_overlay_mousewait);
 			//console.log(event);
 			first_click.x = event.pageX - $player_overlay.offset().left;
@@ -742,30 +766,31 @@ var video_timer = null;
 		var player_overlay_mouseup = function(event) {
 			$player_overlay.unbind("mousemove", player_overlay_mousemove);
 			$player_overlay.unbind("mousemove", player_overlay_mousewait);
-			//$select_annotation_region_button.removeAttr("disabled");
+			//$annotation_done_button.removeAttr("disabled");
+			
+			if($region_bg) {
+				$player_overlay.css("cursor","default");
+				$player_overlay.unbind("mousedown", player_overlay_mousedown);
+			}
 		};
 		var player_overlay_mouseleave = function(event) {
 			
 		};
 
 		var $annotate_button = this.find("button#annotate_button");
-		var $select_annotation_region_button = this.find("#select_annotation_region_button");
+		var $annotation_done_button = this.find("#annotation_done_button");
 		var $cancel_region_selection_button = this.find("#cancel_region_selection_button")
 		var annotate_button_onclick = function() {
+			if(!player)	return;
 			$player_overlay.mousedown(player_overlay_mousedown);
 			$player_overlay.mouseup(player_overlay_mouseup);
 			$player_overlay.mouseleave(player_overlay_mouseleave);
 			$player_overlay.css("cursor", "crosshair");
 			$annotate_button.css("display","none");
-			$select_annotation_region_button.css("display","inline");
-			$select_annotation_region_button.attr("disabled", "disabled");
+			$annotation_done_button.css("display","inline");
+			$annotation_done_button.attr("disabled", "disabled");
 			$cancel_region_selection_button.css("display", "inline");
-			
-			
-			//TODO: 1. pause the video play back
-			// 2. let user choose annotation area
-			// 3. show up text input
-			// 4. associate
+			player.pauseVideo();
 		};
 		$annotate_button.click(annotate_button_onclick);
 		$cancel_region_selection_button.click(function() {
@@ -777,7 +802,7 @@ var video_timer = null;
 				$region_border = null;
 			}
 			$cancel_region_selection_button.css("display","none");
-			$select_annotation_region_button.css("display","none");
+			$annotation_done_button.css("display","none");
 			$annotate_button.css("display","inline");
 			$player_overlay.css("cursor", "default");
 			$player_overlay.unbind("mousemove",player_overlay_mousewait);
@@ -785,6 +810,17 @@ var video_timer = null;
 			$player_overlay.unbind("mouseup",player_overlay_mouseup);
 			$player_overlay.unbind("mouseleave",player_overlay_mouseleave);
 		});
+		
+
+
+		var annotation_done_button_onclick = function() {
+			//TODO: save the annotation
+
+		};
+		$annotation_done_button.click(annotation_done_button_onclick);
+
+
+
 		var $timeline_scroll_pane = $("#timeline_pane"), $timeline_scroll_content = $("#timeline_scroll_content");
 		
 		$timeline_scroll_content.find("ul").sortable({helper:"clone", distance:5, containment: $timeline_scroll_pane, change:methods.timeline_sortable_onchange, stop: timeline_sortable_onstop, placeholder:"timeline-sortable-highlight"})
