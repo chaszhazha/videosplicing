@@ -235,7 +235,8 @@ var video_timer = null;
 				"#annotation_done_button, #cancel_region_selection_button{display: none; float: right;}" + 
 				".annotation { background: #444444; position:absolute;}" + 
 				".annotation_region{position: absolute; border-style:dashed; border-width:2px;}" +
-				".annotation_region_bg{background: steelblue; opacity:0.6; cursor:move;}" +  
+				".annotation_region_bg{background-color: rgba(80,250,250,0.4); cursor:move;}" +  
+				"p.annotation-editable{margin:0; width:100%;letter-spacing:1px;}" + 
 				"#timeline li.timeline-sortable-highlight {border: 2px solid #fcefa1;width: 116px; height: 90px; margin: 4px 6px;background: #fbf9ee; padding:0;}" +
 				"</style>");
 	    	var params = { allowScriptAccess: "always" };
@@ -246,6 +247,7 @@ var video_timer = null;
 		var video_doc = this.data("video_doc");
 		var $player_wrapper = $("div#player_wrapper");
 		var $player_overlay = $("div#player_overlay");
+		//$player_overlay.keydown(function(event) {return false;}); // Prevent the plugin getting the keydown event
 		$player_overlay.css({width:option.player_width, height:option.player_height});
 		
 
@@ -612,7 +614,7 @@ var video_timer = null;
 			if(e.keyCode == 32) {
 				//TODO: space key pressed, pause or continue the video
 			}
-			console.log(e);
+			console.log("Key down on video splicer");
 		});
 		
 	    	var timeline_sortable_onchange = function(event, ui) {
@@ -689,25 +691,29 @@ var video_timer = null;
 
 		var region_doubleclick = function(event) {
 			$region_bg.unbind("mousemove");
+			var $p_annotation = $region_bg.find(".annotation-editable");
+			console.log($p_annotation);
+			var text = $p_annotation.text();
+			$p_annotation.remove();
 			var $textarea = $('<textarea></textarea>');
 			$textarea.mousedown(function() {$textarea.focus(); return false;});
 			//$textarea.mousemove(function() {return false;});
 			$region_bg.append($textarea);
-			$textarea.css({width:"100%", height:"100%"});
-			$textarea.resizable({
-			    resize: function() {
-				//TODO: resize the selected region
-			    }
-			});
+			console.log(text);
+			$textarea.val(function(i, val) {return text;});
+			$textarea.css({maxWidth:"99%", maxHeight:"99%", minWidth:"99%", minHeight:"99%", padding:"0", margin:"0px"});
+			//$textarea.resizable();
 			$textarea.focus();
-			$textarea.keydown(function() {return false;}); // Prevent the plugin getting the keydown event
-			var $textarea_wrapper = $textarea.parent();
-			$textarea_wrapper.css({margin:"0", padding:"1px"});
-			//$textarea_wrapper.mousemove(function() {return false;});
-			$textarea_wrapper.find(".ui-resizable-handle").mousedown( function() {console.log("resizable handle");});
-			$textarea.bind("resize", function() {console.log("resizing")});
 			$textarea.blur(function() {
 				//TODO: remove the textarea and add the text to the containing div
+				var text = $textarea.val();
+				$textarea.remove();
+				var $content = $("<p class='annotation-editable'></p>");
+				$content.text(function(i, value) {return text});
+				$region_bg.append($content);
+	
+				//$textarea.val(function(i, text) {return text + text;});
+				
 			});
 		};
 		var region_mousedown = function(event) {
@@ -750,6 +756,8 @@ var video_timer = null;
 				$region_bg = $region_border.find(".annotation_region_bg");
 				$region_bg.mousedown(region_mousedown);
 				$region_bg.mouseup(region_mouseup);
+				
+				//$region_bg.resizable({});
 				$player_overlay.append($region_border);
 				$region_border.css({width:0, height:0, top:first_click.y, left:first_click.x});
 				$annotation_done_button.removeAttr("disabled");
