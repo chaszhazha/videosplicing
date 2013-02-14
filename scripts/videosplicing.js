@@ -90,18 +90,26 @@ CompositeVideo.prototype.UpdateCurrentVideo = function(start, duration)
 	}
 }
 
+// repositioning of the video doc model, change the current video index if necessary, return whether video is switched
 CompositeVideo.prototype.Reposition = function(new_pos)
 {
 	if(new_pos <0 || new_pos > this.duration)
 		return;
 	var i;
+	var ret = false;
 	for(i = 1; i < this.videos.length; i++) {
 		if(this.videos[i].position >new_pos) {
 			break;
 		}
 	}
-	this.current = i - 1;
+	if(this.current != (i-1))
+	{
+		ret = true;
+		this.current = i - 1;
+		this.annotations = this.videos[this.current].annotations.slice(0);
+	}
 	this.position = new_pos;
+	return ret;
 }
 
 CompositeVideo.prototype.copy = function(video_doc) {
@@ -305,8 +313,10 @@ var video_timer = null;
 						var dur = (parseInt(time[1]) * 60 + parseInt(time[2]));
 						video_doc.AddVideo(new VideoClip({vid:videoid, start:0.0, duration:dur, video_length:dur}));
 						var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
-						that.find("div#timeline_pane div#timeline_scroll_content ul")
+						var new_li = that.find("div#timeline_pane div#timeline_scroll_content ul")
 							.append("<li><div class='video-icon'><img src='" + vid_thumbnail_url + "' alt='Video " + video_doc.videos.length +"'/></div></li>");
+						new_li.data("videoclip", video_doc.videos[video_doc.length - 1]);
+						new_li.click(methods.video_icon_clicked);
 						that.data("timeline_slider").slider("option","max", video_doc.duration);
 						if(video_doc.videos.length == 1)
 						{
@@ -393,8 +403,6 @@ var video_timer = null;
  		 * This function is called every 0.1 seconds when the video is playing. Used to update the ui's slider
  		 */
 		var tick = function() {
-			//console.log("tick");
-			//check the annotations to see if there are annotations to be shown
 			var video_doc = that.data("video_doc");
 			var player_time = player.getCurrentTime();
 			//console.log(player_time);
@@ -446,11 +454,7 @@ var video_timer = null;
 		};
 		var timeline_slider_slidestop = function(event, ui) {
 			var video_doc = that.data("video_doc");
-			//switch video if necessary, calculate index of video based on position,
-			var old_vid_ind = video_doc.current;
-			video_doc.Reposition($(this).slider("option","value"));
-			//console.log( "Old range: from " + $range_selector.slider("option","values")[0] + " to " + $range_selector.slider("option","values")[1]);
-			if(old_vid_ind != video_doc.current) 
+			if(video_doc.Reposition($(this).slider("option","value"))) 
 			{
 				var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
 				player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid,
@@ -469,25 +473,18 @@ var video_timer = null;
 			else
 				player.pauseVideo();
 
-			// annotations
-			//TODO: when you go back within one video clip and annotations shown will not show up again, fix this!!!
-			video_doc.annotations = video_doc.videos[video_doc.current].annotations.slice(0);
+			// annotations, the Reposition function should take care of the annotations array of the video_doc
 			for(var i = 0; i < video_doc.annotations_shown.length; i++)
 				video_doc.annotations_shown[i].remove();
-			console.log(video_doc.annotations);
+			//console.log(video_doc.annotations);
 			video_doc.annotations_shown = [];
 			
 			for(var i = 0; i < video_doc.annotations.length; i++)
 			{
 				video_doc.annotations[i].displayed = false;
-				if(video_doc.annotations[i].position < video_pos && video_doc.annotations[i].end > video_pos)
-				{
-					//console.log("Showing annotation on start of a video clip");
-					var $annotation = show_annotation(video_doc.annotations[i]);
-					video_doc.annotations_shown.push($annotation);
-					video_doc.annotations[i].displayed = true;
-				}
 			}
+			if(!video_doc.isPlaying)
+				tick();
 		}; 
 		var slider_onslide = function(event, ui) {
 			//TODO: finish this function, show the frame of the video
@@ -983,6 +980,8 @@ var video_timer = null;
 							
 							vid_icon_img[index].src = vid_thumbnail_url;
 							$(vid_icon[index]).data("videoclip",videoDocObj.videos[index]);
+							$(vid_icon[index]).click(methods.video_icon_clicked);
+							//TODO: add click event to jump to the start of the video clip and also reposition the sliders
 						}
 						else {
 							//TODO: response returned an empty array, video is not available, show error message 
@@ -997,6 +996,18 @@ var video_timer = null;
 			} );
 		}
 	    },
+	    video_icon_clicked: function(event) {
+		var video_doc = this.data("video_doc");
+		var $li = $(event.delegateTarget);
+		var videoclip = $li.data("videoclip");
+		if(video_doc.Reposition(videoclip.position))
+		{
+			console.log("need to switch video");
+		}
+		//TODO: 1.position the video_doc
+		// 2. position the sliders
+		// 3. change video if necessary
+    	    },
 	    onPlayerReady:function(callback) {
 		this.playerReadyFuncs.push(callback);
 	    }
