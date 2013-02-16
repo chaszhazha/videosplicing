@@ -353,7 +353,6 @@ var onPlayerStateChange;
 				"</div> " + 
 				"<div id='splicer_time_markers'><span id=''></span></div>" + 
                 		"<div id='splicer_range_selector'></div>" +
-				"<button id='splicer_select_range_button'>Select range for video clip</button>" + 
                 		"<div id='timeline'><div id='splicer_timeline_slider'></div>" + 
 					"<div id='timeline_pane'> <div id='timeline_scroll_content'><ul></ul></div> <div class='slider-wrapper'><div id='timeline_scrollbar'></div> </div></div>" + 
 				"</div>");
@@ -509,10 +508,24 @@ var onPlayerStateChange;
 				private_methods.tick.call(that);
 		}; 
 		var slider_onslide = function(event, ui) {
-			//TODO: finish this function, show the frame of the video
-			//console.log($(this).data("videosplicerObj"));
+			//TODO: seek to the position of the video at the point of the handler that is being dragged
+			//TODO: change the handler position of the timeline slider
 		};
-		$range_selector.slider({range: true, slide: slider_onslide, step: 0.05});
+		var range_selector_slidestart = function(event, ui) {
+			var video_doc = that.data("video_doc");
+			if(video_doc.isPlaying)
+			{
+				player.pauseVideo();
+				clearInterval(video_timer);
+				video_timer = null;
+				video_doc.isPlaying = false;
+				that.data("play_button").find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
+			}
+		};
+		var range_selector_slidestop = function(event, ui) {
+			// TODO: Update the range of the current video
+		};
+		$range_selector.slider({range: true, slide: slider_onslide, step: 0.05, start: range_selector_slidestart, stop: range_selector_slidestop});
 		$range_selector.slider("disable");
 		$range_selector.css({marginTop: "5px", width:"450px", marginLeft:"auto", marginRight:"auto"});
 		$timeline_slider.slider({step:0.1, slide: timeline_slider_onslide, start: timeline_slider_slidestart, stop: timeline_slider_slidestop});
