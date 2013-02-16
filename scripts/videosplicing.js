@@ -1,5 +1,4 @@
 
-//TODO: jump to the next video (maybe by clicking on a video's icon in the timeline pane view)
 //TODO: mark the time on the timeline where there's a video switch
 //TODO: red position vertical bar for timeline pane view
 //TODO: edit annotation color and background color and opacity
@@ -8,7 +7,7 @@
 //TODO: when dragging the timeline slider, the video will stop switching when it should and the annotation will stop annotation update cuz we are stopping the timer,
 //	instead of stopping the timer, we could simply add a boolean flag so that if the slider handler is pressed we simply stop positioning the handler from code.
 
-//TODO: click on video icon in timeline to change to the start of that video
+//TODO: click on video icon in timeline to jump to that video
 //TODO: click on range selector to go to the end positions of that clip
 //TODO: indicate where the annotates are on the slider timeline and use keyboard navigation to jump to that positon
 
@@ -157,7 +156,28 @@ var onPlayerStateChange;
 (function($){
 	var video_timer = null;
 	var private_methods = {
+	    video_icon_clicked: function(event) {
+		var $li = $(event.delegateTarget);
+		var video_doc = $li.data("video_doc");
+		
+		var videoclip = $li.data("videoclip");
+		if(video_doc.Reposition(videoclip.position))
+		{
+			//swith video
+			$li.data("player").cueVideoById( {videoId:video_doc.videos[video_doc.current].vid, startSeconds:video_doc.videos[video_doc.current].start});
+			$li.data("player").pauseVideo();
+		}
+		$li.data("player").seekTo(video_doc.videos[video_doc.current].start);
+		if(video_doc.isPlaying)
+			$li.data("player").playVideo();
+		else
+		{
+			$li.data("player").pauseVideo();
+		}
+		private_methods.tick.call(this);
 
+		this.data("range_selector").slider("option", {values:[video_doc.videos[video_doc.current].start, video_doc.videos[video_doc.current].end]});
+	    },
 		switch_to_next_video: function(video_doc) {
 			for(var i = 0; i < video_doc.annotations_shown.length; i++) {
 				video_doc.annotations_shown[i].remove();
@@ -356,6 +376,7 @@ var onPlayerStateChange;
 				"#timeline_scroll_content{width: 2440px; float: left; height: 100px}" + 
 				"#timeline_scroll_content ul {list-style-type: none; margin-top:auto; margin-bottom:auto; padding:0;}" + 
 				"#timeline_scroll_content ul li{display:inline; float: left;}" + 
+				"#timeline_pane ul li .video-icon{cursor: pointer;}" + 
 				"div#timeline div#timeline_pane div#timeline_scrollcontent div{ float: left;}" + 
 				"div.video-icon{display:inline; float: left; margin: 4px 6px;}" + 
 				"div#player_overlay {position:absolute; top:0}" + 
@@ -412,10 +433,11 @@ var onPlayerStateChange;
 						var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
 						var new_li = that.find("div#timeline_pane div#timeline_scroll_content ul")
 							.append("<li><div class='video-icon'><img src='" + vid_thumbnail_url + "' alt='Video " + video_doc.videos.length +"'/></div></li>");
-						new_li.data("videoclip", video_doc.videos[video_doc.length - 1]);
-						new_li.click(methods.video_icon_clicked);
-						new_li.data("video_doc",video_doc);
-						new_li.data("player",player);
+						var new_img = new_li.find("img");
+						new_img.data("videoclip", video_doc.videos[video_doc.length - 1]);
+						new_img.click((function(){return function(event) {private_methods.video_icon_clicked.call(this,event)} })());
+						new_img.data("video_doc",video_doc);
+						new_img.data("player",player);
 						that.data("timeline_slider").slider("option","max", video_doc.duration);
 						if(video_doc.videos.length == 1)
 						{
@@ -642,21 +664,21 @@ var onPlayerStateChange;
 	    	}
 		var timeline_sortable_onstop = function(event, ui) {
 			//event.target is the ul element
-
+			//console.log(event.target);
 	    		//rearrange the order of the video clips
 			var video_doc = $(event.target).data("video_doc");
 			if(video_doc.videos.length == 1) return;
-			video_doc.videos[0] = $($(event.target).find("li")[0]).data("videoclip");
+			video_doc.videos[0] = $($(event.target).find("img")[0]).data("videoclip");
 			video_doc.videos[0].position = 0;
 			var position, position_counter = video_doc.videos[0].duration; // The playback position of the composite video
-			if($($(event.target).find("li")[0]).data("videoclip").isCurrent) {
-				position = player.getCurrentTime() - $($(event.target).find("li")[0]).data("videoclip").start;
+			if($($(event.target).find("img")[0]).data("videoclip").isCurrent) {
+				position = player.getCurrentTime() - $($(event.target).find("img")[0]).data("videoclip").start;
 				video_doc.current = 0;
 			}
 			
 			for(var i = 1; i < video_doc.videos.length; i++)
 			{
-				video_doc.videos[i] = $($(event.target).find("li")[i]).data("videoclip");
+				video_doc.videos[i] = $($(event.target).find("img")[i]).data("videoclip");
 				video_doc.videos[i].position = video_doc.videos[i - 1].position + video_doc.videos[i - 1].duration;
 				if(video_doc.videos[i].isCurrent) {
 					video_doc.current = i;
@@ -991,10 +1013,10 @@ var onPlayerStateChange;
 							var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
 							
 							vid_icon_img[index].src = vid_thumbnail_url;
-							$(vid_icon[index]).data("videoclip",videoDocObj.videos[index]);
-							$(vid_icon[index]).data("video_doc",video_doc);
-							$(vid_icon[index]).data("player",that.data("player"));
-							$(vid_icon[index]).click(methods.video_icon_clicked);
+							$(vid_icon_img[index]).data("videoclip",videoDocObj.videos[index]);
+							$(vid_icon_img[index]).data("video_doc",video_doc);
+							$(vid_icon_img[index]).data("player",that.data("player"));
+							$(vid_icon_img[index]).click((function(){return function(event) {private_methods.video_icon_clicked.call(that,event)} })());
 							//TODO: add click event to jump to the start of the video clip and also reposition the sliders
 						}
 						else {
@@ -1010,29 +1032,6 @@ var onPlayerStateChange;
 			} );
 		}
 	    },
-	    video_icon_clicked: function(event) {
-		var $li = $(event.delegateTarget);
-		var video_doc = $li.data("video_doc");
-		
-		var videoclip = $li.data("videoclip");
-		if(video_doc.Reposition(videoclip.position))
-		{
-			//swith video
-			$li.data("player").cueVideoById( {videoId:video_doc.videos[video_doc.current].vid, startSeconds:video_doc.videos[video_doc.current].start});
-			$li.data("player").pauseVideo();
-		}
-		$li.data("player").seekTo(video_doc.videos[video_doc.current].start);
-		if(video_doc.isPlaying)
-			$li.data("player").playVideo();
-		else
-		{
-			
-			$li.data("player").pauseVideo();
-		}
-		//TODO:
-		// 2. position the sliders
-		// 3. change video if necessary
-    	    },
 	    onPlayerReady:function(callback) {
 		this.playerReadyFuncs.push(callback);
 	    }
