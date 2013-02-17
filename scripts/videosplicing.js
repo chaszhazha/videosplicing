@@ -509,18 +509,18 @@ var onPlayerStateChange;
 				private_methods.tick.call(that);
 		}; 
 		var slider_onslide = function(event, ui) {
-			var video_doc = that.data("video_doc");
 			player.seekTo(ui.value);
-			video_doc.UpdateCurrentVideo(ui.values[0], ui.values[1]);
-			console.log(ui.values[0]);
+			that.data("video_doc").UpdateCurrentVideo(ui.values[0], ui.values[1]);
+			var video_doc = that.data("video_doc");
+			//console.log(ui.values[0]);
 			$timeline_slider.slider("option","max", video_doc.duration);
 			if(ui.value == ui.values[0])
-				video_doc.position = video_doc.videos[video_doc.current].position;
+				that.data("video_doc").position = video_doc.videos[video_doc.current].position;
 			else
-				video_doc.position = video_doc.videos[video_doc.current].position + video_doc.videos[video_doc.current].duration;
+				that.data("video_doc").position = video_doc.videos[video_doc.current].position + video_doc.videos[video_doc.current].duration;
 			$timeline_slider.slider("option","value", video_doc.position);
-			console.log("Timeline slider position changed to " + video_doc.position);
-			console.log("Timeline slider max changed to " + video_doc.duration);
+			//console.log("Timeline slider position changed to " + video_doc.position);
+			//console.log("Timeline slider max changed to " + video_doc.duration);
 			$timeline_slider.slider("option","max", video_doc.duration);
 		};
 		var range_selector_slidestart = function(event, ui) {
@@ -632,17 +632,17 @@ var onPlayerStateChange;
 			if(!player) return;
 			var video_doc = that.data("video_doc");
 			if(video_doc.videos.length == 0) return;
-			video_doc.UpdateCurrentVideo($range_selector.slider("option","values")[0], $range_selector.slider("option","values")[1] - $range_selector.slider("option","values")[0]);
+			that.data("video_doc").UpdateCurrentVideo($range_selector.slider("option","values")[0], $range_selector.slider("option","values")[1] - $range_selector.slider("option","values")[0]);
 			//Update the max value of the timeline slider
 			console.log("changing max of timeline slider from " + $timeline_slider.slider("option","max") + " to " + video_doc.duration)
 			$timeline_slider.slider("option","max", video_doc.duration);
 			if(video_doc.position > video_doc.duration)
-				video_doc.position = video_doc.duration;
-			console.log("Changing position of timeline slider from " + $timeline_slider.slider("option","value") + " to " + video_doc.position);
+				that.data("video_doc").position = that.data("video_doc").duration;
+			console.log("Changing position of timeline slider from " + $timeline_slider.slider("option","value") + " to " + that.data("video_doc").position);
 			//Check if the position of the video is out of the new selected range, if so, seek to the start of the clip
 			if(player.getCurrentTime() < video_doc.videos[video_doc.current].start || player.getCurrentTime() >= video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration)
 				player.seekTo(video_doc.videos[video_doc.current].start);
-			$timeline_slider.slider("option","value", video_doc.position);
+			$timeline_slider.slider("option","value", that.data("video_doc").position);
 		};
 		$("#splicer_select_range_button").click(select_range_button_click);
 		var play_button_onclick = function() {
