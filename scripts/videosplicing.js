@@ -1002,7 +1002,7 @@ var onPlayerStateChange;
 		console.log(video_doc);
 		if(videoDocObj.videos.length > 0) {
 			this.data("range_selector").slider("option","max", videoDocObj.videos[0].video_length);
-			this.data("range_selector").slider("option", "values",[videoDocObj.videos[0].start, videoDocObj.videos[0].start + videoDocObj.videos[0].duration]);
+			this.data("range_selector").slider("option", "values",[videoDocObj.videos[0].start + 0, videoDocObj.videos[0].start + videoDocObj.videos[0].duration]);
 			this.data("player").loadVideoById({videoId:videoDocObj.videos[0].vid,
 						startSeconds:videoDocObj.videos[0].start});
 			this.data("player").pauseVideo();
