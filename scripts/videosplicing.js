@@ -186,6 +186,8 @@ var onPlayerStateChange;
 				video_doc.annotations_shown[i].remove();
 			}
 			var player = this.data("player");
+			var $video_icons = this.find(".video-icon");
+			$video_icons[video_doc.current].removeClass("current-video");
 			video_doc.annotations_shown = [];
 			if(video_doc.current == video_doc.videos.length -1)
 			{
@@ -227,6 +229,7 @@ var onPlayerStateChange;
 				player.loadVideoById( {videoId:video_doc.videos[video_doc.current].vid,
 						startSeconds:start_at});
 			}
+			$video_icons[video_doc.current].addClass("current-video");
 			for(var i = 0; i < video_doc.annotations.length; i++) {
 				if(video_doc.annotations[i].position < video_doc.videos[video_doc.current].start && video_doc.annotations[i].end > video_doc.videos[video_doc.current].end)
 				{
@@ -379,7 +382,8 @@ var onPlayerStateChange;
 				"#timeline_scroll_content ul li{display:inline; float: left;}" + 
 				"#timeline_pane ul li .video-icon{cursor: pointer;}" + 
 				"div#timeline div#timeline_pane div#timeline_scrollcontent div{ float: left;}" + 
-				"div.video-icon{display:inline; float: left; margin: 4px 6px;}" + 
+				"div.video-icon{display:inline; float: left; margin: 4px 6px; border-width:5px; border-radius: 8px; border-style:solid;}" + 
+				"div.current-video{border-color: steelblue;}" +
 				"div#player_overlay {position:absolute; top:0}" + 
 				"div#player_wrapper {position: relative}" + 
 				"button#annotate_button {float:right;} " + 
@@ -478,8 +482,12 @@ var onPlayerStateChange;
 		};
 		var timeline_slider_slidestop = function(event, ui) {
 			var video_doc = that.data("video_doc");
+			var old_curr = video_doc.current;
 			if(video_doc.Reposition($(this).slider("option","value"))) 
 			{
+				var $video_icons = that.find(".video-icon");
+				$video_icons[video_doc.current].addClass("current-video");
+				$video_icons[old_curr].removeClass("current-video");
 				var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
 				player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid,
 						startSeconds:start_at});				
@@ -1019,9 +1027,9 @@ var onPlayerStateChange;
 							videoDocObj.videos[index].video_length = duration;
 							if(index == 0) {
 								that.data("range_selector").slider("option", "max", duration);
+								$(vid_icon).addClass("current-video");
 							}
 							var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
-							
 							vid_icon_img[index].src = vid_thumbnail_url;
 							$(vid_icon_img[index]).data("videoclip",videoDocObj.videos[index]);
 							$(vid_icon_img[index]).data("video_doc",video_doc);
