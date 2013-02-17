@@ -516,7 +516,7 @@ var onPlayerStateChange;
 				video_doc.position = video_doc.videos[video_doc.current].position;
 			else
 				video_doc.position = video_doc.videos[video_doc.current].position + video_doc.videos[video_doc.current].duration;
-			$timeline_slider.slider("option","value", video_doc.positon);
+			$timeline_slider.slider("option","value", video_doc.position);
 		};
 		var range_selector_slidestart = function(event, ui) {
 			var video_doc = that.data("video_doc");
