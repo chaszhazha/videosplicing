@@ -533,9 +533,11 @@ var onPlayerStateChange;
 				video_doc.isPlaying = false;
 				that.data("play_button").find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
 			}
+			console.log(video_doc.videos[video_doc.current]);
 		};
 		var range_selector_slidestop = function(event, ui) {
-			
+			var video_doc = that.data("video_doc");
+			console.log(video_doc.videos[video_doc.current]);
 		};
 		$range_selector.slider({range: true, slide: slider_onslide, step: 0.05, start: range_selector_slidestart, stop: range_selector_slidestop});
 		$range_selector.slider("disable");
