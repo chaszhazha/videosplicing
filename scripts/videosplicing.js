@@ -1006,7 +1006,7 @@ var onPlayerStateChange;
 				$timeline_scroll_content.append("<li><div class='video-icon'><img src='' alt='Video " + (i + 1) +"'/></div></li>");
 			}
 			var vid_icon = this.find("div#timeline_pane div#timeline_scroll_content ul li");
-			vid_icon.find(".video-icon")[0].addClass("current-video");
+			//vid_icon.find(".video-icon")[0].addClass("current-video");
 			var vid_icon_img = vid_icon.find("div.video-icon img");
 			var that = this;
 			$.each(videoDocObj.videos, function(index, value) {
