@@ -229,7 +229,7 @@ var onPlayerStateChange;
 				player.loadVideoById( {videoId:video_doc.videos[video_doc.current].vid,
 						startSeconds:start_at});
 			}
-			$video_icons[video_doc.current].addClass("current-video");
+			$($video_icons[video_doc.current]).addClass("current-video");
 			for(var i = 0; i < video_doc.annotations.length; i++) {
 				if(video_doc.annotations[i].position < video_doc.videos[video_doc.current].start && video_doc.annotations[i].end > video_doc.videos[video_doc.current].end)
 				{
@@ -377,7 +377,7 @@ var onPlayerStateChange;
 				".playback-button{padding:2px 2px}" +
 				".playback-button svg{width:20px; height:20px;}" + 
 				".playback-button svg polygon{fill:black;}" + 
-				"#timeline_scroll_content{width: 2440px; float: left; height: 100px}" + 
+				"#timeline_scroll_content{width: 2440px; float: left; height: 110px}" + 
 				"#timeline_scroll_content ul {list-style-type: none; margin-top:auto; margin-bottom:auto; padding:0;}" + 
 				"#timeline_scroll_content ul li{display:inline; float: left;}" + 
 				"#timeline_pane ul li .video-icon{cursor: pointer;}" + 
