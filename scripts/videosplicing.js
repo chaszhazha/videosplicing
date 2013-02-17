@@ -78,11 +78,13 @@ CompositeVideo.prototype.UpdateCurrentVideo = function(start, duration)
 	var old_duration = this.videos[this.current].duration;
 	var del = duration - old_duration;
 	this.duration += del;
+	
 
 	this.position += this.videos[this.current].start - start;
 	if(this.position < this.videos[this.current].position)	this.position = this.videos[this.current].position;
 	this.videos[this.current].duration = duration;
 	this.videos[this.current].start = start;
+	this.videos[this.current].end = start + duration;
 	//Also update the position of the videos that come after the current video
 	var i ;
 	for(i= this.current + 1;i < this.videos.length; i++) {
