@@ -518,6 +518,8 @@ var onPlayerStateChange;
 			else
 				video_doc.position = video_doc.videos[video_doc.current].position + video_doc.videos[video_doc.current].duration;
 			$timeline_slider.slider("option","value", video_doc.position);
+			console.log("Timeline slider position changed to " + video_doc.position);
+			console.log("Timeline slider max changed to " + video_doc.duration);
 			$timeline_slider.slider("option","max", video_doc.duration);
 		};
 		var range_selector_slidestart = function(event, ui) {
@@ -644,7 +646,7 @@ var onPlayerStateChange;
 		$("#splicer_select_range_button").click(select_range_button_click);
 		var play_button_onclick = function() {
 			var video_doc = that.data("video_doc");
-			//TODO: 1. If we are in the player's mode, then either not show the range selector or disable it and the "select range" button
+			//TODO: 1. If we are in the player's mode, then either not show the range selector or disable it
 			//If it is in the editor's mode, then update the max value and reposition the two handles
 			if(video_doc.videos.length == 0)
 				return;	
@@ -772,9 +774,6 @@ var onPlayerStateChange;
 				var $content = $("<p class='annotation-editable'></p>");
 				$content.text(function(i, value) {return text});
 				$region_bg.append($content);
-	
-				//$textarea.val(function(i, text) {return text + text;});
-				
 			});
 		};
 		var region_mousedown = function(event) {
