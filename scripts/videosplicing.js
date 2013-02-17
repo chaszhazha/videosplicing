@@ -510,7 +510,7 @@ var onPlayerStateChange;
 		var slider_onslide = function(event, ui) {
 			var video_doc = that.data("video_doc");
 			player.seekTo(ui.value);
-			video_doc.updateCurrentVideo(ui.values[0], ui.values[1]);
+			video_doc.UpdateCurrentVideo(ui.values[0], ui.values[1]);
 			$timeline_slider.slider("option","max", video_doc.duration);
 			if(ui.value == ui.values[0])
 				video_doc.position = video_doc.videos[video_doc.current].position;
