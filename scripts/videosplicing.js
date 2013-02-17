@@ -75,6 +75,7 @@ CompositeVideo.prototype.AddVideo = function(arg)
 
 CompositeVideo.prototype.UpdateCurrentVideo = function(start, duration) 
 {
+	console.log( start + " <==> " + duration);
 	var old_duration = this.videos[this.current].duration;
 	var del = duration - old_duration;
 	this.duration += del;
@@ -512,7 +513,7 @@ var onPlayerStateChange;
 		}; 
 		var slider_onslide = function(event, ui) {
 			player.seekTo(ui.value);
-			that.data("video_doc").UpdateCurrentVideo(ui.values[0], ui.values[1]);
+			that.data("video_doc").UpdateCurrentVideo(ui.values[0], ui.values[1] - ui.values[0]);
 			var video_doc = that.data("video_doc");
 			//console.log(ui.values[0]);
 			$timeline_slider.slider("option","max", video_doc.duration);
@@ -632,22 +633,6 @@ var onPlayerStateChange;
 			
 		$(player).data("videosplicerObj", this);
 
-		var select_range_button_click = function() {
-			if(!player) return;
-			var video_doc = that.data("video_doc");
-			if(video_doc.videos.length == 0) return;
-			that.data("video_doc").UpdateCurrentVideo($range_selector.slider("option","values")[0], $range_selector.slider("option","values")[1] - $range_selector.slider("option","values")[0]);
-			//Update the max value of the timeline slider
-			console.log("changing max of timeline slider from " + $timeline_slider.slider("option","max") + " to " + video_doc.duration)
-			$timeline_slider.slider("option","max", video_doc.duration);
-			if(video_doc.position > video_doc.duration)
-				that.data("video_doc").position = that.data("video_doc").duration;
-			console.log("Changing position of timeline slider from " + $timeline_slider.slider("option","value") + " to " + that.data("video_doc").position);
-			//Check if the position of the video is out of the new selected range, if so, seek to the start of the clip
-			if(player.getCurrentTime() < video_doc.videos[video_doc.current].start || player.getCurrentTime() >= video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration)
-				player.seekTo(video_doc.videos[video_doc.current].start);
-			$timeline_slider.slider("option","value", that.data("video_doc").position);
-		};
 		$("#splicer_select_range_button").click(select_range_button_click);
 		var play_button_onclick = function() {
 			var video_doc = that.data("video_doc");
