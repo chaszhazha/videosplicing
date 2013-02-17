@@ -200,7 +200,7 @@ var onPlayerStateChange;
 
 				// load the first video if there are more than 1 videos, also reset the handles
 				if(video_doc.videos.length != 1)
-					player.cueVideoById( {videoId:video_doc.videos[0].vid,
+					player.loadVideoById( {videoId:video_doc.videos[0].vid,
 						startSeconds:video_doc.videos[0].start} );
 				else
 					player.seekTo(video_doc.videos[0].start);
@@ -1043,7 +1043,8 @@ var onPlayerStateChange;
 				{
 					var t = value.position + value.annotations[i].start - value.start;
 					var $bar = $timeline_slider.append("<span class='annotation_bar'></span>");
-					$bar.css("left", (t/video_doc.duration * 100.0).toFixed(2) + "%");
+					var left = (t/video_doc.duration * 100.0).toFixed(2) + "%";
+					$bar.css("left", left);
 				}
 			} );
 		}
