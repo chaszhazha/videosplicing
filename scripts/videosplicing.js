@@ -486,8 +486,8 @@ var onPlayerStateChange;
 			if(video_doc.Reposition($(this).slider("option","value"))) 
 			{
 				var $video_icons = that.find(".video-icon");
-				$video_icons[video_doc.current].addClass("current-video");
-				$video_icons[old_curr].removeClass("current-video");
+				$($video_icons[video_doc.current]).addClass("current-video");
+				$($video_icons[old_curr]).removeClass("current-video");
 				var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
 				player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid,
 						startSeconds:start_at});				
@@ -1006,6 +1006,7 @@ var onPlayerStateChange;
 				$timeline_scroll_content.append("<li><div class='video-icon'><img src='' alt='Video " + (i + 1) +"'/></div></li>");
 			}
 			var vid_icon = this.find("div#timeline_pane div#timeline_scroll_content ul li");
+			vid_icon.find(".video-icon")[0].addClass("current-video");
 			var vid_icon_img = vid_icon.find("div.video-icon img");
 			var that = this;
 			$.each(videoDocObj.videos, function(index, value) {
@@ -1027,7 +1028,7 @@ var onPlayerStateChange;
 							videoDocObj.videos[index].video_length = duration;
 							if(index == 0) {
 								that.data("range_selector").slider("option", "max", duration);
-								$(vid_icon).addClass("current-video");
+								
 							}
 							var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
 							vid_icon_img[index].src = vid_thumbnail_url;
