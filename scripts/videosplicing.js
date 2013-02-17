@@ -363,7 +363,6 @@ var onPlayerStateChange;
 		$("head").append("<style>" + 
 				"#video_container{margin:0 auto;  width:" + option.player_width + "px;}" + 
 				"#vid_input{margin:0 auto; width: 600px;}" + 
-				"#splicer_select_range_button{float: right; margin-top: 5px;}" + 
 				"div#timeline div#timeline_pane{ " + 
 					"-webkit-border-radius: 5px; -moz-border-radius: 5px; border-radius:5px;" + 
 					"border: 2px solid gray;" + 
@@ -633,7 +632,6 @@ var onPlayerStateChange;
 			
 		$(player).data("videosplicerObj", this);
 
-		$("#splicer_select_range_button").click(select_range_button_click);
 		var play_button_onclick = function() {
 			var video_doc = that.data("video_doc");
 			//TODO: 1. If we are in the player's mode, then either not show the range selector or disable it
