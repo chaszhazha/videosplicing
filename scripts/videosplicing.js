@@ -1041,7 +1041,7 @@ var onPlayerStateChange;
 				//TODO: add annotation bars to the time line slider
 				for(var i = 0; i < value.annotations.length; i++)
 				{
-					var t = value.position + value.annotations[i].start - value.start;
+					var t = value.position + value.annotations[i].position - value.start;
 					var $bar = $timeline_slider.append("<span class='annotation_bar'></span>");
 					var left = (t/video_doc.duration * 100.0).toFixed(2) + "%";
 					$bar.css("left", left);
