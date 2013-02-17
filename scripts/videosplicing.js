@@ -612,7 +612,7 @@ var onPlayerStateChange;
 			video_doc.current = 0.0;
 			$timeline_slider.slider("option","value",0);
 			$range_selector.slider("option","max",video_doc.videos[0].video_length);
-			$range_selector.slider("option","values",[ video_doc.videos[0].start , video_doc.videos[0].start + video_doc.videos[0].duration]);
+			$range_selector.slider("option","values",[ video_doc.videos[0].start + 0 , video_doc.videos[0].start + video_doc.videos[0].duration]);
 			$play_button.find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
 			private_methods.tick.call(that);
 			video_doc.annotations = video_doc.videos[0].annotations.slice(0);
