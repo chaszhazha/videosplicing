@@ -1042,7 +1042,8 @@ var onPlayerStateChange;
 				for(var i = 0; i < value.annotations.length; i++)
 				{
 					var t = value.position + value.annotations[i].position - value.start;
-					var $bar = $timeline_slider.append("<span class='annotation_bar'></span>");
+					var $bar = $("<span class='annotation_bar'></span>");
+					$timeline_slider.append($bar);
 					var left = (t/video_doc.duration * 100.0).toFixed(2) + "%";
 					$bar.css("left", left);
 				}
