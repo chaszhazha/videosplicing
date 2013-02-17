@@ -175,7 +175,8 @@ var onPlayerStateChange;
 		}
 		private_methods.tick.call(this);
 
-		this.data("range_selector").slider("option", {values:[video_doc.videos[video_doc.current].start, video_doc.videos[video_doc.current].end]});
+		this.data("range_selector").slider("option", {values:[video_doc.videos[video_doc.current].start, video_doc.videos[video_doc.current].end], 
+								max: video_doc.videos[video_doc.current].video_length});
 	    },
 		switch_to_next_video: function(video_doc) {
 			for(var i = 0; i < video_doc.annotations_shown.length; i++) {
@@ -517,6 +518,7 @@ var onPlayerStateChange;
 			else
 				video_doc.position = video_doc.videos[video_doc.current].position + video_doc.videos[video_doc.current].duration;
 			$timeline_slider.slider("option","value", video_doc.position);
+			$timeline_slider.slider("option","max", video_doc.duration);
 		};
 		var range_selector_slidestart = function(event, ui) {
 			var video_doc = that.data("video_doc");
