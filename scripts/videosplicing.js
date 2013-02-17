@@ -175,7 +175,7 @@ var onPlayerStateChange;
 		}
 		private_methods.tick.call(this);
 
-		this.data("range_selector").slider("option", {values:[video_doc.videos[video_doc.current].start, video_doc.videos[video_doc.current].end], 
+		this.data("range_selector").slider("option", {values:[video_doc.videos[video_doc.current].start + 0, video_doc.videos[video_doc.current].end], 
 								max: video_doc.videos[video_doc.current].video_length});
 	    },
 		switch_to_next_video: function(video_doc) {
