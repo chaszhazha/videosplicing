@@ -75,7 +75,7 @@ CompositeVideo.prototype.AddVideo = function(arg)
 
 CompositeVideo.prototype.UpdateCurrentVideo = function(start, duration) 
 {
-	console.log( start + " <==> " + duration);
+	//console.log( start + " <==> " + duration);
 	var old_duration = this.videos[this.current].duration;
 	var del = duration - old_duration;
 	this.duration += del;
