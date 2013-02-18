@@ -398,6 +398,7 @@ var onPlayerStateChange;
 				".annotation { background: #444444; position:absolute;}" + 
 				".annotation_region textarea{resize:none;}" +
 				".annotation_bar { width: 2px; background-color: black; height: 100%; position: absolute; z-index: 4;}" + 
+				".video_timeline_bar {width: 2px; background-colir: gray; height:100%; position: absolute; z-index:4}" +
 				".annotation_region{position: absolute; border-style:dashed; border-width:2px;background-color: rgba(80,250,250,0.4); cursor:move;}" +  
 				"p.annotation-editable{margin:0; width:100%;letter-spacing:1px;}" + 
 				"#timeline li.timeline-sortable-highlight {border: 2px solid #fcefa1;width: 116px; height: 90px; margin: 4px 6px;background: #fbf9ee; padding:0;}" +
@@ -1100,6 +1101,10 @@ var onPlayerStateChange;
 					var left = (t/video_doc.duration * 100.0).toFixed(2) + "%";
 					$bar.css("left", left);
 				}
+				var $bar = $("<span class='video_timeline_bar'></span>");
+				$timeline_slider.append($bar);
+				var left = (value.position/video_doc.duration * 100.0).toFixed(2) + "%";
+				$bar.css("left", left);
 			} );
 		}
 	    },
