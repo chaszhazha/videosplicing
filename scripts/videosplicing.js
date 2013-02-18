@@ -125,10 +125,10 @@ CompositeVideo.prototype.copy = function(video_doc) {
 }
 
 /**
- * This function generates and returns an array containing all the video links, used for exporting links
+ * TODO: This function generates and returns an array containing all the video links, used for exporting links
  */
 CompositeVideo.prototype.getLinks = function() {
-	//TODO
+	//TODO 
 }
 
 function VideoAnnotation(a) {
@@ -577,8 +577,19 @@ var onPlayerStateChange;
 		};
 		var range_selector_slidestop = function(event, ui) {
 			var video_doc = that.data("video_doc");
-			//console.log(video_doc.videos[video_doc.current]);
-			//TODO: check the annotations, some need to show up and some need to disapper
+			//Since we are seeking to a different part of the video, need to check the annotations, some need to show up and some need to disapper
+			for(var i = 0; i < video_doc.annotations_shown.length; i++)
+			video_doc.annotations_shown[i].remove();
+			//console.log(video_doc.annotations);
+			video_doc.annotations_shown = [];
+			
+			for(var i = 0; i < video_doc.annotations.length; i++)
+			{
+				video_doc.annotations[i].displayed = false;
+			}
+			if(!video_doc.isPlaying)
+				private_methods.tick.call(that);
+			
 		};
 		$range_selector.slider({range: true, slide: slider_onslide, step: 0.05, start: range_selector_slidestart, stop: range_selector_slidestop});
 		$range_selector.slider("disable");
