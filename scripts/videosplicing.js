@@ -484,7 +484,6 @@ var onPlayerStateChange;
 				clearInterval(video_timer);
 				video_timer = null;
 			}
-			player.seekTo(ui.value);
 		};
 		var timeline_slider_slidestop = function(event, ui) {
 			var video_doc = that.data("video_doc");
@@ -529,7 +528,7 @@ var onPlayerStateChange;
 			that.data("video_doc").UpdateCurrentVideo(ui.values[0], ui.values[1] - ui.values[0]);
 			var video_doc = that.data("video_doc");
 			//console.log(ui.values[0]);
-			$timeline_slider.slider("option","max", video_doc.duration);
+			//$timeline_slider.slider("option","max", video_doc.duration);
 			if(ui.value == ui.values[0])
 				that.data("video_doc").position = video_doc.videos[video_doc.current].position;
 			else
@@ -549,11 +548,26 @@ var onPlayerStateChange;
 				video_doc.isPlaying = false;
 				that.data("play_button").find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
 			}
-			console.log(video_doc.videos[video_doc.current]);
+			player.seekTo(ui.value);
+			//that.data("video_doc").UpdateCurrentVideo(ui.values[0], ui.values[1] - ui.values[0]);
+			var video_doc = that.data("video_doc");
+			//console.log(ui.values[0]);
+			//$timeline_slider.slider("option","max", video_doc.duration);
+			if(ui.value == ui.values[0])
+				that.data("video_doc").position = video_doc.videos[video_doc.current].position;
+			else
+				that.data("video_doc").position = video_doc.videos[video_doc.current].position + video_doc.videos[video_doc.current].duration;
+			$timeline_slider.slider("option","value", video_doc.position);
+			//console.log("Timeline slider position changed to " + video_doc.position);
+			//console.log("Timeline slider max changed to " + video_doc.duration);
+			//$timeline_slider.slider("option","max", video_doc.duration);
 		};
 		var range_selector_slidestop = function(event, ui) {
 			var video_doc = that.data("video_doc");
 			console.log(video_doc.videos[video_doc.current]);
+			
+			$timeline_slider.slider("option", "value" ,);
+			player.seekTo(ui.value);
 		};
 		$range_selector.slider({range: true, slide: slider_onslide, step: 0.05, start: range_selector_slidestart, stop: range_selector_slidestop});
 		$range_selector.slider("disable");
