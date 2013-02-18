@@ -578,6 +578,7 @@ var onPlayerStateChange;
 		var range_selector_slidestop = function(event, ui) {
 			var video_doc = that.data("video_doc");
 			//console.log(video_doc.videos[video_doc.current]);
+			//TODO: check the annotations, some need to show up and some need to disapper
 		};
 		$range_selector.slider({range: true, slide: slider_onslide, step: 0.05, start: range_selector_slidestart, stop: range_selector_slidestop});
 		$range_selector.slider("disable");
