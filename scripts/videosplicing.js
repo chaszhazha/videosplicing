@@ -170,7 +170,7 @@ var onPlayerStateChange;
 			//swith video
 			var video_icons = this.find(".video-icon");
 			$(video_icons[old_curr]).removeClass("current-video");
-			$(video_icnos[video_doc.current]).addClass("current-video");
+			$(video_icons[video_doc.current]).addClass("current-video");
 			$li.data("player").cueVideoById( {videoId:video_doc.videos[video_doc.current].vid, startSeconds:video_doc.videos[video_doc.current].start});
 			$li.data("player").pauseVideo();
 		}
