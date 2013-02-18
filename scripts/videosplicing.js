@@ -159,13 +159,18 @@ var onPlayerStateChange;
 	var video_timer = null;
 	var private_methods = {
 	    video_icon_clicked: function(event) {
+		// The this keyword is the video splicer jquery object
 		var $li = $(event.delegateTarget);
 		var video_doc = $li.data("video_doc");
 		
+		var old_curr = video_doc.current;		
 		var videoclip = $li.data("videoclip");
 		if(video_doc.Reposition(videoclip.position))
 		{
 			//swith video
+			var video_icons = this.find(".video-icon");
+			$(video_icons[old_curr]).removeClass("current-video");
+			$(video_icnos[video_doc.current]).addClass("current-video");
 			$li.data("player").cueVideoById( {videoId:video_doc.videos[video_doc.current].vid, startSeconds:video_doc.videos[video_doc.current].start});
 			$li.data("player").pauseVideo();
 		}
@@ -441,7 +446,7 @@ var onPlayerStateChange;
 							.append("<li><div class='video-icon'><img src='" + vid_thumbnail_url + "' alt='Video " + video_doc.videos.length +"'/></div></li>");
 						var new_img = new_li.find("img");
 						new_img.data("videoclip", video_doc.videos[video_doc.length - 1]);
-						new_img.click((function(){return function(event) {private_methods.video_icon_clicked.call(this,event)} })());
+						new_img.click((function(){return function(event) {private_methods.video_icon_clicked.call(that,event)} })());
 						new_img.data("video_doc",video_doc);
 						new_img.data("player",player);
 						that.data("timeline_slider").slider("option","max", video_doc.duration);
