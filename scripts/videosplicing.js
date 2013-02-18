@@ -7,8 +7,7 @@
 //TODO: when dragging the timeline slider, the video will stop switching when it should and the annotation will stop annotation update cuz we are stopping the timer,
 //	instead of stopping the timer, we could simply add a boolean flag so that if the slider handler is pressed we simply stop positioning the handler from code.
 
-//TODO: give the icon of the current video a border
-//TODO: indicate where the annotates are on the slider timeline and use keyboard navigation to jump to that positon
+//TODO: indicate where the annotations are on the slider timeline and use keyboard navigation to jump to that positon
 
 function Link(source_doc, target_doc) {
 	this.source_doc = source_doc;
@@ -245,7 +244,9 @@ var onPlayerStateChange;
 				}
 			}
 		},
-		tick: function(switchvideo = true) {
+		tick: function(switchvideo) {
+			if(switchvideo == null)
+				switchvideo = true;
 			var video_doc = this.data("video_doc");
 			var player = this.data("player");
 			var player_time = player.getCurrentTime();
@@ -280,7 +281,7 @@ var onPlayerStateChange;
 			{
 				// Switch point reached
 				if(switchvideo)	
-				private_methods.switch_to_next_video.call(this, video_doc);
+					private_methods.switch_to_next_video.call(this, video_doc);
 			}
 		},
 		show_annotation: function(a) {
