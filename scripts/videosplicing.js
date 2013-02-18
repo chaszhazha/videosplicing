@@ -537,6 +537,17 @@ var onPlayerStateChange;
 			//console.log("Timeline slider position changed to " + video_doc.position);
 			//console.log("Timeline slider max changed to " + video_doc.duration);
 			$timeline_slider.slider("option","max", video_doc.duration);
+
+			//also reposition the annotation bars on the timeline slider
+			that.find(".annotation_bar").remove();
+			for(var i = 0; i < video_doc.annotations.length; i++)
+			{
+				var t = value.position + value.annotations[i].position - value.start;
+				var $bar = $("<span class='annotation_bar'></span>");
+				$timeline_slider.append($bar);
+				var left = (t/video_doc.duration * 100.0).toFixed(2) + "%";
+				$bar.css("left", left);
+			}
 		};
 		var range_selector_slidestart = function(event, ui) {
 			var video_doc = that.data("video_doc");
@@ -564,7 +575,7 @@ var onPlayerStateChange;
 		};
 		var range_selector_slidestop = function(event, ui) {
 			var video_doc = that.data("video_doc");
-			console.log(video_doc.videos[video_doc.current]);
+			//console.log(video_doc.videos[video_doc.current]);
 		};
 		$range_selector.slider({range: true, slide: slider_onslide, step: 0.05, start: range_selector_slidestart, stop: range_selector_slidestop});
 		$range_selector.slider("disable");
@@ -1063,7 +1074,8 @@ var onPlayerStateChange;
 				};
 				xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + value.vid + "&part=contentDetails,snippet&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
 				xmlhttp.send();
-				//TODO: add annotation bars to the time line slider
+
+				//add annotation bars to the time line slider
 				for(var i = 0; i < value.annotations.length; i++)
 				{
 					var t = value.position + value.annotations[i].position - value.start;
