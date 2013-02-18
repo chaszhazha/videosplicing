@@ -245,7 +245,7 @@ var onPlayerStateChange;
 				}
 			}
 		},
-		tick: function() {
+		tick: function(switchvideo = true) {
 			var video_doc = this.data("video_doc");
 			var player = this.data("player");
 			var player_time = player.getCurrentTime();
@@ -279,6 +279,7 @@ var onPlayerStateChange;
 			if(video_doc.position + 0.1 > video_doc.videos[video_doc.current].position + video_doc.videos[video_doc.current].duration)
 			{
 				// Switch point reached
+				if(switchvideo)	
 				private_methods.switch_to_next_video.call(this, video_doc);
 			}
 		},
@@ -588,7 +589,7 @@ var onPlayerStateChange;
 				video_doc.annotations[i].displayed = false;
 			}
 			if(!video_doc.isPlaying)
-				private_methods.tick.call(that);
+				private_methods.tick.call(that, false);
 			
 		};
 		$range_selector.slider({range: true, slide: slider_onslide, step: 0.05, start: range_selector_slidestart, stop: range_selector_slidestop});
