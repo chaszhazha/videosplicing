@@ -388,7 +388,7 @@ var onPlayerStateChange;
 				"#timeline_pane ul li .video-icon{cursor: pointer;}" + 
 				"div#timeline div#timeline_pane div#timeline_scrollcontent div{ float: left;}" + 
 				"div.video-icon{display:inline; float: left; margin: 4px 6px; border-width:5px; border-radius: 8px; border-style:solid;}" + 
-				"div.current-video{border-color: steelblue;}" +
+				"div.current-video{border-color: #f6a828;}" +
 				"div#player_overlay {position:absolute; top:0}" + 
 				"div#player_wrapper {position: relative}" + 
 				"button#annotate_button {float:right;} " + 
@@ -484,6 +484,7 @@ var onPlayerStateChange;
 				clearInterval(video_timer);
 				video_timer = null;
 			}
+			player.seekTo(ui.value);
 		};
 		var timeline_slider_slidestop = function(event, ui) {
 			var video_doc = that.data("video_doc");
