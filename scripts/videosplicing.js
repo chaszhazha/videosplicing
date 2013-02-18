@@ -540,9 +540,9 @@ var onPlayerStateChange;
 
 			//also reposition the annotation bars on the timeline slider
 			that.find(".annotation_bar").remove();
-			for(var i = 0; i < video_doc.annotations.length; i++)
+			for(var i = 0; i < video_doc.videos[video_doc.current].annotations.length; i++)
 			{
-				var t = value.position + value.annotations[i].position - value.start;
+				var t = video_doc.videos[video_doc.current].position + video_doc.videos[video_doc.current].annotations[i].position - video_doc.videos[video_doc.current].start;
 				var $bar = $("<span class='annotation_bar'></span>");
 				$timeline_slider.append($bar);
 				var left = (t/video_doc.duration * 100.0).toFixed(2) + "%";
