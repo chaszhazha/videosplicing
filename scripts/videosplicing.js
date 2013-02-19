@@ -181,6 +181,10 @@ var onPlayerStateChange;
 			$li.data("player").pauseVideo();
 		}
 		private_methods.tick.call(this);
+		this.find(".video_timeline_span").remove();
+		var $vid_span = $("<span class='video_timeline_span'></span>");
+		this.data("timeline_slider").append($vid_span);
+		$vid_span.css({left: (video_doc.videos[video_doc.current].position).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration).toFixed(2) + "%" });
 
 		this.data("range_selector").slider("option", {values:[video_doc.videos[video_doc.current].start + 0, video_doc.videos[video_doc.current].end], 
 								max: video_doc.videos[video_doc.current].video_length});
@@ -531,6 +535,11 @@ var onPlayerStateChange;
 			}
 			if(!video_doc.isPlaying)
 				private_methods.tick.call(that);
+			this.find(".video_timeline_span").remove();
+			var $vid_span = $("<span class='video_timeline_span'></span>");
+			this.data("timeline_slider").append($vid_span);
+			$vid_span.css({left: (video_doc.videos[video_doc.current].position).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration).toFixed(2) + "%" });
+
 		}; 
 		var slider_onslide = function(event, ui) {
 			player.seekTo(ui.value);
