@@ -23,9 +23,9 @@ function VideoClip(param) {
 	var option = $.extend({}, default_option, param);
 	
 	this.vid = option.vid;
-	this.start = option.start;
+	this.start = option.start; // The start position of the video clip in the single video
 	this.duration = option.duration;//Duration of the clip of the video
-	this.end = this.start + this.duration;
+	this.end = this.start + this.duration; //The end position of the video clip in the single video
 	this.position = option.position;
 	this.video_length = option.video_length; //Duration of the youtube video 
 	this.isCurrent = false;
@@ -564,6 +564,8 @@ var onPlayerStateChange;
 			{
 				for(var i = 0; i < video_doc.videos[v].annotations.length; i++)
 				{
+					if(video_doc.videos[v].annotations[i].position > video_doc.videos[v].end || video_doc.videos[v].annotations[i].position + video_doc.videos[v].annotations[i].duration< video_doc.videos[v].start)
+						continue;
 					var t = video_doc.videos[v].position + video_doc.videos[v].annotations[i].position - video_doc.videos[v].start;
 					var left = parseFloat((t/video_doc.duration * 100.0).toFixed(2));
 					if(left <0 || left > 100) continue;
