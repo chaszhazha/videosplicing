@@ -1118,7 +1118,7 @@ var onPlayerStateChange;
 				var $video_span = $("<span class='video_timeline_span'></span>");
 				$timeline_slider.append($video_span);
 				$video_span.css("left", left);
-				$video_span.css("width", ((svideo_doc.videos[video_doc.current + 1].position - value.position )/video_doc.duration * 100.0 ).toFixed(2) + "%");
+				$video_span.css("width", ((video_doc.videos[video_doc.current + 1].position - value.position )/video_doc.duration * 100.0 ).toFixed(2) + "%");
 				
 			} );
 		}
