@@ -535,9 +535,9 @@ var onPlayerStateChange;
 			}
 			if(!video_doc.isPlaying)
 				private_methods.tick.call(that);
-			this.find(".video_timeline_span").remove();
+			$(this).find(".video_timeline_span").remove();
 			var $vid_span = $("<span class='video_timeline_span'></span>");
-			this.data("timeline_slider").append($vid_span);
+			$(this).append($vid_span);
 			$vid_span.css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
 
 		}; 
