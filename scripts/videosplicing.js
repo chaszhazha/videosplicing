@@ -545,7 +545,7 @@ var onPlayerStateChange;
 			//also reposition the annotation bars and the video bars on the timeline slider
 			that.find(".annotation_bar").remove();
 			that.find(".video_timeline_bar").remove();
-			that.find("video_timeline_span").remove();
+			that.find(".video_timeline_span").remove();
 			for(var v = 0; v < video_doc.videos.length; v ++)
 			{
 				for(var i = 0; i < video_doc.videos[v].annotations.length; i++)
@@ -565,9 +565,10 @@ var onPlayerStateChange;
 			//TODO: redraw the video span on the timeline slider
 			var $vid_span = $("<span class='video_timeline_span'></span>");	
 			var width =(video_doc.videos[video_doc.current].duration / video_doc.duration * 100.0).toFixed(2) + "%";
-
+			$timeline_slider.append($vid_span);
 			$vid_span.css("left", (video_doc.videos[video_doc.current].position / video_doc.duration * 100.0).toFixed(2) + "%");
 			$vid_span.css("width", width);
+			
 		};
 		var range_selector_slidestart = function(event, ui) {
 			var video_doc = that.data("video_doc");
