@@ -398,7 +398,7 @@ var onPlayerStateChange;
 				".annotation { background: #444444; position:absolute;}" + 
 				".annotation_region textarea{resize:none;}" +
 				".annotation_bar { width: 2px; background-color: gray; height: 100%; position: absolute; z-index: 4;}" + 
-				".video_timeline_bar {width: 2px; background-color: orange; height:100%; position: absolute; }" +
+				".video_timeline_bar .video_timeline_bar_edge{width: 2px; background-color: orange; height:100%; position: absolute; }" +
 				".video_timeline_span {background-color: orange; height:20%; position:absolute; top:40%}" +
 				".annotation_region{position: absolute; border-style:dashed; border-width:2px;background-color: rgba(80,250,250,0.4); cursor:move;}" +  
 				"p.annotation-editable{margin:0; width:100%;letter-spacing:1px;}" + 
@@ -1102,20 +1102,17 @@ var onPlayerStateChange;
 					var left = (t/video_doc.duration * 100.0).toFixed(2) + "%";
 					$bar.css("left", left);
 				}
-				var $bar_left = $("<span class='video_timeline_bar'></span>");
-				$timeline_slider.append($bar_left);
+				if(index == 0)	continue;
+				var $bar = $("<span class='video_timeline_bar'></span>");
+				$timeline_slider.append($bar);
 				var left = (value.position/video_doc.duration * 100.0).toFixed(2) + "%";
-				$bar_left.css("left", left);
-				var $bar_right = $("<span class='video_timeline_bar'></span>");
-				$timeline_slider.append($bar_right);
-				if(index < video_doc.videos.length - 1)
-				{
-					right = ((video_doc.videos[video_doc.current + 1].position)/video_doc.duration * 100.0 ).toFixed(2) + "%";
-				}
-				else
-					right = "100%";
-				$bar_right.css("left", left);
+				$bar.css("left", left);
 			} );
+			var $bar_left = $("<span class='video_timeline_bar_edge'></span>");
+			var $bar_right = $("<span class='video_timeline_bar_edge'></span>");
+			$timeline_slider.append($bar_left).append($bar_right);
+			$bar_left.css(left,"0%");
+			$bar_right.css(right, "100%");
 
 			var $video_span = $("<span class='video_timeline_span'></span>");
 			var width;
