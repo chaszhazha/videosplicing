@@ -1102,11 +1102,13 @@ var onPlayerStateChange;
 					var left = (t/video_doc.duration * 100.0).toFixed(2) + "%";
 					$bar.css("left", left);
 				}
-				if(index == 0)	continue;
-				var $bar = $("<span class='video_timeline_bar'></span>");
-				$timeline_slider.append($bar);
-				var left = (value.position/video_doc.duration * 100.0).toFixed(2) + "%";
-				$bar.css("left", left);
+				if(index != 0)
+				{
+					var $bar = $("<span class='video_timeline_bar'></span>");
+					$timeline_slider.append($bar);
+					var left = (value.position/video_doc.duration * 100.0).toFixed(2) + "%";
+					$bar.css("left", left);
+				}
 			} );
 			var $bar_left = $("<span class='video_timeline_bar_edge'></span>");
 			var $bar_right = $("<span class='video_timeline_bar_edge'></span>");
