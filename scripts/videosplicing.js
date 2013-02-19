@@ -397,7 +397,7 @@ var onPlayerStateChange;
 				"#annotation_done_button, #cancel_region_selection_button{display: none; float: right;}" + 
 				".annotation { background: #444444; position:absolute;}" + 
 				".annotation_region textarea{resize:none;}" +
-				".annotation_bar { width: 2px; background-color: black; height: 100%; position: absolute; z-index: 4;}" + 
+				".annotation_bar { width: 2px; background-color: gray; height: 100%; position: absolute; z-index: 4;}" + 
 				".video_timeline_bar {width: 2px; background-color: orange; height:100%; position: absolute; }" +
 				".video_timeline_span {background-color: orange; height:20%; position:absolute; top:40%}" +
 				".annotation_region{position: absolute; border-style:dashed; border-width:2px;background-color: rgba(80,250,250,0.4); cursor:move;}" +  
@@ -1115,12 +1115,21 @@ var onPlayerStateChange;
 				else
 					right = "100%";
 				$bar_right.css("left", left);
-				var $video_span = $("<span class='video_timeline_span'></span>");
-				$timeline_slider.append($video_span);
-				$video_span.css("left", left);
-				$video_span.css("width", ((video_doc.videos[video_doc.current + 1].position - value.position )/video_doc.duration * 100.0 ).toFixed(2) + "%");
-				
 			} );
+
+			var $video_span = $("<span class='video_timeline_span'></span>");
+			var width;
+			if(video_doc.videos.length > 1)
+			{
+				width = ((video_doc.videos[1].position)/video_doc.duration * 100.0 ).toFixed(2) + "%";
+			}
+			else
+				width = "100%";
+			
+			$timeline_slider.append($video_span);
+			$video_span.css("left", "0%");
+			$video_span.css("width", width);
+				
 		}
 	    },
 	    onPlayerReady:function(callback) {
