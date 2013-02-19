@@ -564,6 +564,7 @@ var onPlayerStateChange;
 			{
 				for(var i = 0; i < video_doc.videos[v].annotations.length; i++)
 				{
+					//TODO: if the start of the annotation is out of range but part of the duration is still within range (this can only happen at the beginning of the video clip), then also draw the annotation bar at the beginning of the video clip
 					if(video_doc.videos[v].annotations[i].position > video_doc.videos[v].end || video_doc.videos[v].annotations[i].position + video_doc.videos[v].annotations[i].duration< video_doc.videos[v].start)
 						continue;
 					var t = video_doc.videos[v].position + video_doc.videos[v].annotations[i].position - video_doc.videos[v].start;
