@@ -1063,7 +1063,7 @@ var onPlayerStateChange;
 			$timeline_slider.append($bar_right);
 			$bar_left.css(left,"0%");
 			$bar_right.css(right, "100%");
-
+/*
 			var $video_span = $("<span class='video_timeline_span'></span>");
 			var width;
 			if(video_doc.videos.length > 1)
@@ -1076,6 +1076,8 @@ var onPlayerStateChange;
 			$timeline_slider.append($video_span);
 			$video_span.css("left", "0%");
 			$video_span.css("width", width);
+*/
+
 			$.each(videoDocObj.videos, function(index, value) {
 				var xmlhttp=new XMLHttpRequest();
 				xmlhttp.onreadystatechange=function() {
