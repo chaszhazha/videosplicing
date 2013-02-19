@@ -233,6 +233,11 @@ var onPlayerStateChange;
 				player.loadVideoById( {videoId:video_doc.videos[video_doc.current].vid,
 						startSeconds:start_at});
 			}
+			this.find(".video_timeline_span").remove();
+			var $vid_span = $("<span class='video_timeline_span'></span>");
+			this.data("timeline_slider").append($vid_span);
+			$vid_span.css({left: (video_doc.videos[video_doc.current].position).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration).toFixed(2) + "%" });
+
 			$($video_icons[video_doc.current]).addClass("current-video");
 			for(var i = 0; i < video_doc.annotations.length; i++) {
 				if(video_doc.annotations[i].position < video_doc.videos[video_doc.current].start && video_doc.annotations[i].end > video_doc.videos[video_doc.current].end)
