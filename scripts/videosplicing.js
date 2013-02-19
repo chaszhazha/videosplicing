@@ -542,9 +542,12 @@ var onPlayerStateChange;
 			//console.log("Timeline slider max changed to " + video_doc.duration);
 			$timeline_slider.slider("option","max", video_doc.duration);
 
-			//also reposition the annotation bars on the timeline slider
+			//also reposition the annotation bars and the video bars on the timeline slider
 			that.find(".annotation_bar").remove();
+			that.find(".video_timeline_bar").remove();
+			that.find("video_timeline_span").remove();
 			for(var v = 0; v < video_doc.videos.length; v ++)
+			{
 				for(var i = 0; i < video_doc.videos[v].annotations.length; i++)
 				{
 					var t = video_doc.videos[v].position + video_doc.videos[v].annotations[i].position - video_doc.videos[v].start;
@@ -553,7 +556,18 @@ var onPlayerStateChange;
 					var $bar = $("<span class='annotation_bar'></span>");
 					$timeline_slider.append($bar);
 					$bar.css("left", left + "%");
+				}
+				if(v == 0) continue;
+				var $bar = $("<span class='video_timeline_bar'></span>");
+				$bar.css("left", (video_doc.videos[v].position / video_doc.duration * 100.0).toFixed(2) + "%");
+				$timeline_slider.append($bar);
 			}
+			//TODO: redraw the video span on the timeline slider
+			var $vid_span = $("<span class='video_timeline_span'></span>");	
+			var width =(video_doc.videos[video_doc.current].duration / video_doc.duration * 100.0).toFixed(2) + "%";
+
+			$vid_span.css("left", (video_doc.videos[video_doc.current].position / video_doc.duration * 100.0).toFixed(2) + "%");
+			$vid_span.css("width", width);
 		};
 		var range_selector_slidestart = function(event, ui) {
 			var video_doc = that.data("video_doc");
@@ -1062,7 +1076,7 @@ var onPlayerStateChange;
 			$timeline_slider.append($bar_left);
 			$timeline_slider.append($bar_right);
 			$bar_left.css("left","0%");
-			$bar_right.css("right", "100%");
+			$bar_right.css("right", "0%");
 
 			var $video_span = $("<span class='video_timeline_span'></span>");
 			var width;
