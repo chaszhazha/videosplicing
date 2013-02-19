@@ -1055,12 +1055,14 @@ var onPlayerStateChange;
 			$(vid_icon.find(".video-icon")[0]).addClass("current-video");
 			var vid_icon_img = vid_icon.find("div.video-icon img");
 			var that = this;
+			
+			
 			var $bar_left = $("<span class='video_timeline_bar_edge'></span>");
 			var $bar_right = $("<span class='video_timeline_bar_edge'></span>");
 			$timeline_slider.append($bar_left).append($bar_right);
 			$bar_left.css(left,"0%");
 			$bar_right.css(right, "100%");
-
+/*
 			var $video_span = $("<span class='video_timeline_span'></span>");
 			var width;
 			if(video_doc.videos.length > 1)
@@ -1073,7 +1075,7 @@ var onPlayerStateChange;
 			$timeline_slider.append($video_span);
 			$video_span.css("left", "0%");
 			$video_span.css("width", width);
-
+*/
 			$.each(videoDocObj.videos, function(index, value) {
 				var xmlhttp=new XMLHttpRequest();
 				xmlhttp.onreadystatechange=function() {
