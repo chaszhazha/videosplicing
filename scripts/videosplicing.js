@@ -1056,14 +1056,14 @@ var onPlayerStateChange;
 			var vid_icon_img = vid_icon.find("div.video-icon img");
 			var that = this;
 			
-			
+	/*		
 			var $bar_left = $("<span class='video_timeline_bar_edge'></span>");
 			var $bar_right = $("<span class='video_timeline_bar_edge'></span>");
 			$timeline_slider.append($bar_left);
 			$timeline_slider.append($bar_right);
 			$bar_left.css(left,"0%");
 			$bar_right.css(right, "100%");
-/*
+
 			var $video_span = $("<span class='video_timeline_span'></span>");
 			var width;
 			if(video_doc.videos.length > 1)
