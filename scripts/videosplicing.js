@@ -184,7 +184,7 @@ var onPlayerStateChange;
 		this.find(".video_timeline_span").remove();
 		var $vid_span = $("<span class='video_timeline_span'></span>");
 		this.data("timeline_slider").append($vid_span);
-		$vid_span.css({left: (video_doc.videos[video_doc.current].position).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration).toFixed(2) + "%" });
+		$vid_span.css({left: (video_doc.videos[video_doc.current].position /video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
 
 		this.data("range_selector").slider("option", {values:[video_doc.videos[video_doc.current].start + 0, video_doc.videos[video_doc.current].end], 
 								max: video_doc.videos[video_doc.current].video_length});
@@ -538,7 +538,7 @@ var onPlayerStateChange;
 			this.find(".video_timeline_span").remove();
 			var $vid_span = $("<span class='video_timeline_span'></span>");
 			this.data("timeline_slider").append($vid_span);
-			$vid_span.css({left: (video_doc.videos[video_doc.current].position).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration).toFixed(2) + "%" });
+			$vid_span.css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
 
 		}; 
 		var slider_onslide = function(event, ui) {
@@ -576,7 +576,7 @@ var onPlayerStateChange;
 				$bar.css("left", (video_doc.videos[v].position / video_doc.duration * 100.0).toFixed(2) + "%");
 				$timeline_slider.append($bar);
 			}
-			//TODO: redraw the video span on the timeline slider
+			//redraw the video span on the timeline slider
 			var $vid_span = $("<span class='video_timeline_span'></span>");	
 			var width =(video_doc.videos[video_doc.current].duration / video_doc.duration * 100.0).toFixed(2) + "%";
 			$timeline_slider.append($vid_span);
