@@ -129,12 +129,12 @@ CompositeVideo.prototype.getLinks = function() {
 }
 
 function VideoAnnotation(a) {
-	var default_args = {content: "", duration: 10, position:0, top:0, bottom:0,left: 0, right:0, background:{r:120,g:120,b:120, a:0.6}, foreground: "#ffffff"};
+	var default_args = {content: "", duration: 10, position:0, rect:{top:0, bottom:0,left: 0, right:0}, background:{r:120,g:120,b:120, a:0.6}, foreground: "#ffffff"};
 	var args = $.extend(true, {}, default_args, a);
 	this.content = args.content;
 	this.duration = args.duration;
 	this.position = args.position; // This should be the position that the annotation will show up in the timeline of the whole video.
-	this.rect = {top:args.top, bottom:args.bottom, left: args.left, right:args.right, width: args.right - args.left, height: args.bottom - args.top};
+	this.rect = {top:args.rect.top, bottom:args.rect.bottom, left: args.rect.left, right:args.rect.right, width: args.rect.right - args.rect.left, height: args.rect.bottom - args.rect.top};
 	this.rect.width = this.rect.width > 0 ? this.rect.width : 0;
 	this.rect.height = this.rect.height > 0 ? this.rect.height : 0;
 	this.background = {};
