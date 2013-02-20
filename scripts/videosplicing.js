@@ -193,6 +193,7 @@ var onPlayerStateChange;
 		
 		var old_curr = video_doc.current;		
 		var videoclip = $li.data("videoclip");
+		console.log(event.delegateTarget);
 		console.log(videoclip);
 		if(video_doc.Reposition(videoclip.position))
 		{
