@@ -433,7 +433,7 @@ var onPlayerStateChange;
 				"#timeline_scroll_content ul li{display:inline; float: left;}" + 
 				"#timeline_pane ul li .video-icon{cursor: pointer;}" + 
 				"div#timeline div#timeline_pane div#timeline_scrollcontent div{ float: left;}" + 
-				"div.video-icon{display:inline; float: left; margin: 4px 6px; border-width:5px; border-radius: 8px; border-style:solid;}" + 
+				"div.video-icon{display:inline; float: left; margin: 4px 6px; border-width:5px; border-radius: 8px; border-style:solid;border-color:rgba(0,0,0,0)}" + 
 				"div.current-video{border-color: #f6a828;}" +
 				"div#player_overlay {position:absolute; top:0}" + 
 				"div#player_wrapper {position: relative}" + 
