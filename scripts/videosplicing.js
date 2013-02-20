@@ -281,13 +281,9 @@ var onPlayerStateChange;
 				}
 			}
 		},
-		tick: function(switchvideo) {
-			if(switchvideo == null)
-				switchvideo = true;
+
+		check_annotations: function(player_time) {
 			var video_doc = this.data("video_doc");
-			var player = this.data("player");
-			var player_time = player.getCurrentTime();
-			//console.log(player_time);
 			//First check if there are new annotations to show
 			for(var i = 0; i < video_doc.annotations.length; i++)
 			{
@@ -308,11 +304,20 @@ var onPlayerStateChange;
 					video_doc.annotations_shown[i].remove();
 				}
 			}
-
+		},
+		tick: function(switchvideo) {
+			if(switchvideo == null)
+				switchvideo = true;
+			var video_doc = this.data("video_doc");
+			var player = this.data("player");
+			var player_time = player.getCurrentTime();
+			//console.log(player_time);
+	
+			private_methods.check_annotations.call(this, player_time);
 			video_doc.position = video_doc.videos[video_doc.current].position + player_time - video_doc.videos[video_doc.current].start;
 			//console.log(this.position + " = " + player.getCurrentTime() + " - " + this.videos[this.current].start);
 			//** update the slider for playback position of the whole video doc
-			console.log(video_doc.position);
+			//console.log(video_doc.position);
 			this.data("timeline_slider").slider("option","value",video_doc.position);
 			if(video_doc.position + 0.1 > video_doc.videos[video_doc.current].position + video_doc.videos[video_doc.current].duration)
 			{
@@ -614,7 +619,19 @@ var onPlayerStateChange;
 			var width =(video_doc.videos[video_doc.current].duration / video_doc.duration * 100.0).toFixed(2) + "%";
 			$vid_span.css("left", (video_doc.videos[video_doc.current].position / video_doc.duration * 100.0).toFixed(2) + "%");
 			$vid_span.css("width", width);
+
+
+			for(var i = 0; i < video_doc.annotations_shown.length; i++)
+				video_doc.annotations_shown[i].remove();
+			//console.log(video_doc.annotations);
+			video_doc.annotations_shown = [];
 			
+			for(var i = 0; i < video_doc.annotations.length; i++)
+			{
+				video_doc.annotations[i].displayed = false;
+			}
+			//update the annotations here and not in the tick function
+			private_methods.check_annotations.call(that, ui.value);
 		};
 		var range_selector_slidestart = function(event, ui) {
 			var video_doc = that.data("video_doc");
@@ -643,17 +660,7 @@ var onPlayerStateChange;
 		var range_selector_slidestop = function(event, ui) {
 			var video_doc = that.data("video_doc");
 			//Since we are seeking to a different part of the video, need to check the annotations, some need to show up and some need to disapper
-			for(var i = 0; i < video_doc.annotations_shown.length; i++)
-			video_doc.annotations_shown[i].remove();
-			//console.log(video_doc.annotations);
-			video_doc.annotations_shown = [];
-			
-			for(var i = 0; i < video_doc.annotations.length; i++)
-			{
-				video_doc.annotations[i].displayed = false;
-			}
-			if(!video_doc.isPlaying)
-				private_methods.tick.call(that, false);
+	
 			
 		};
 		$range_selector.slider({range: true, slide: slider_onslide, step: 0.05, start: range_selector_slidestart, stop: range_selector_slidestop});
