@@ -312,8 +312,8 @@ var onPlayerStateChange;
 			video_doc.position = video_doc.videos[video_doc.current].position + player_time - video_doc.videos[video_doc.current].start;
 			//console.log(this.position + " = " + player.getCurrentTime() + " - " + this.videos[this.current].start);
 			//** update the slider for playback position of the whole video doc
-			if(!this.data("seeking"))
-				this.data("timeline_slider").slider("option","value",video_doc.position);
+			console.log(video_doc.position);
+			this.data("timeline_slider").slider("option","value",video_doc.position);
 			if(video_doc.position + 0.1 > video_doc.videos[video_doc.current].position + video_doc.videos[video_doc.current].duration)
 			{
 				// Switch point reached
