@@ -158,7 +158,7 @@ var onPlayerStateChange;
 	    render_timeline_marks: function(index) {
 		var video_doc = this.data("video_doc");
 		var video_clip = video_doc.videos[index];
-		//TODO: add annotation bars to the time line slider
+		//add annotation bars to the time line slider
 		for(var i = 0; i < video_clip.annotations.length; i++)
 		{
 			if(video_clip.annotations[i].position > video_clip.end || video_clip.annotations[i].position + video_clip.annotations[i].duration < video_clip.start)
@@ -1044,7 +1044,7 @@ var onPlayerStateChange;
 			$annotation_done_button.css("display","none");
 			$cancel_region_selection_button.css("display","none");
 			$annotate_button.css("display","inline");
-			private_methods.check_annotations.call(that, player.getCurrentTime());
+			private_methods.render_timeline_marks.call(that, video_doc.videos.length - 1);
 		};
 		$annotation_done_button.click(annotation_done_button_onclick);
 
