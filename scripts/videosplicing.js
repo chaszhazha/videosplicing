@@ -502,7 +502,6 @@ var onPlayerStateChange;
 						}
 						$timeline_slider.find(".annotation_bar").remove();
 						$timeline_slider.find(".video_timeline_bar").remove();
-						$timeline_slider.find(".video_timeline_span").remove();
 						$timeline_slider.find(".annotation_span").remove();
 
 						for(var v = 0; v < video_doc.videos.length; v ++)
@@ -604,7 +603,6 @@ var onPlayerStateChange;
 			//also reposition the annotation bars and the video bars on the timeline slider
 			that.find(".annotation_bar").remove();
 			that.find(".video_timeline_bar").remove();
-			that.find(".video_timeline_span").remove();
 			that.find(".annotation_span").remove();
 
 			for(var v = 0; v < video_doc.videos.length; v ++)
