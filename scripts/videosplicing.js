@@ -193,6 +193,7 @@ var onPlayerStateChange;
 		
 		var old_curr = video_doc.current;		
 		var videoclip = $li.data("videoclip");
+		console.log(videoclip);
 		if(video_doc.Reposition(videoclip.position))
 		{
 			//swith video
@@ -487,7 +488,7 @@ var onPlayerStateChange;
 						var new_li = that.find("div#timeline_pane div#timeline_scroll_content ul")
 							.append("<li><div class='video-icon'><img src='" + vid_thumbnail_url + "' alt='Video " + video_doc.videos.length +"'/></div></li>");
 						var new_img = new_li.find("img");
-						new_img.data("videoclip", video_doc.videos[video_doc.length - 1]);
+						new_img.data("videoclip", video_doc.videos[video_doc.videos.length - 1]);
 						new_img.click((function(){return function(event) {private_methods.video_icon_clicked.call(that,event)} })());
 						new_img.data("video_doc",video_doc);
 						new_img.data("player",player);
