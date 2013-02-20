@@ -1044,7 +1044,7 @@ var onPlayerStateChange;
 			$annotation_done_button.css("display","none");
 			$cancel_region_selection_button.css("display","none");
 			$annotate_button.css("display","inline");
-			private_methods.check_annotations.apply(that, player.getCurrentTime());
+			private_methods.check_annotations.call(that, player.getCurrentTime());
 		};
 		$annotation_done_button.click(annotation_done_button_onclick);
 
