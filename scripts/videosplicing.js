@@ -567,7 +567,7 @@ var onPlayerStateChange;
 				video_doc.annotations[i].displayed = false;
 			}
 			private_methods.tick.call(that);
-			$timeline_scroll_pane.find(".video_timeline_span").css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
+			$timeline_slider.find(".video_timeline_span").css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
 
 		};
 
@@ -1033,7 +1033,7 @@ var onPlayerStateChange;
 
 
 			// save the annotation
-			var annotation = new VideoAnnotation({content:content, duration: 10, position: player.getCurrentTime(), top: top, bottom: bottom, left:left, right: right,background:{r:r, g:g, b:b, a:a}, foreground:foreground});
+			var annotation = new VideoAnnotation({content:content, duration: 10, position: player.getCurrentTime(), rect:{top: top, bottom: bottom, left:left, right: right},background:{r:r, g:g, b:b, a:a}, foreground:foreground});
 			video_doc.videos[video_doc.current].annotations.push(annotation);
 			var $annotation = private_methods.show_annotation.call(that, annotation);
 			video_doc.annotations_shown.push($annotation);
@@ -1044,7 +1044,7 @@ var onPlayerStateChange;
 			$annotation_done_button.css("display","none");
 			$cancel_region_selection_button.css("display","none");
 			$annotate_button.css("display","inline");
-
+			private_methods.check_annotations.apply(that, player.getCurrentTime());
 		};
 		$annotation_done_button.click(annotation_done_button_onclick);
 
