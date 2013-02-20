@@ -499,7 +499,19 @@ var onPlayerStateChange;
 							player.pauseVideo();
 							$range_selector.slider("option",{max:dur, values:[0, dur]});
 						}
+						$timeline_slider.find(".annotation_bar").remove();
+						$timeline_slider.find(".video_timeline_bar").remove();
+						$timeline_slider.find(".video_timeline_span").remove();
+						$timeline_slider.find(".annotation_span").remove();
 
+						for(var v = 0; v < video_doc.videos.length; v ++)
+						{
+							private_methods.render_timeline_marks.apply(that,[v]);
+						}
+						//redraw the video span on the timeline slider
+						var width =(video_doc.videos[video_doc.current].duration / video_doc.duration * 100.0).toFixed(2) + "%";
+						var $vid_span = $timeline_slider.find(".video_timeline_span");
+						$vid_span.css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
 					}
 					else {
 						//TODO: show some pop up containing a message saying that the video id is not a valid one
@@ -599,9 +611,8 @@ var onPlayerStateChange;
 				private_methods.render_timeline_marks.apply(that,[v]);
 			}
 			//redraw the video span on the timeline slider
-			var $vid_span = $("<span class='video_timeline_span'></span>");	
+			var $vid_span = $timeline_slider.find(".video_timeline_span");
 			var width =(video_doc.videos[video_doc.current].duration / video_doc.duration * 100.0).toFixed(2) + "%";
-			$timeline_slider.append($vid_span);
 			$vid_span.css("left", (video_doc.videos[video_doc.current].position / video_doc.duration * 100.0).toFixed(2) + "%");
 			$vid_span.css("width", width);
 			
