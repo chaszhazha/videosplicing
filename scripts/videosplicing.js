@@ -491,8 +491,9 @@ var onPlayerStateChange;
 						var dur = (parseInt(time[1]) * 60 + parseInt(time[2]));
 						video_doc.AddVideo(new VideoClip({vid:videoid, start:0.0, duration:dur, video_length:dur}));
 						var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
-						var new_li = that.find("div#timeline_pane div#timeline_scroll_content ul")
-							.append("<li><div class='video-icon'><img src='" + vid_thumbnail_url + "' alt='Video " + video_doc.videos.length +"'/></div></li>");
+						var new_li = "<li><div class='video-icon'><img src='" + vid_thumbnail_url + "' alt='Video " + video_doc.videos.length +"'/></div></li>";
+						that.find("div#timeline_pane div#timeline_scroll_content ul")
+							.append(new_li);
 						var new_img = new_li.find("img");
 						new_img.data("videoclip", video_doc.videos[video_doc.videos.length - 1]);
 						new_img.click((function(){return function(event) {private_methods.video_icon_clicked.call(that,event)} })());
