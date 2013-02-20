@@ -424,7 +424,7 @@ var onPlayerStateChange;
 					"margin-top: 20px" + 
 				"}" + 
 				".slider-wrapper{clear: left; padding: 0 4px 0 2px; margin: 0 -1px -1px -1px;}" + 
-				"#timeline_pane{overflow: hidden; width: 99%; float:left; height:130px}" +
+				"div#timeline div#timeline_pane{overflow: hidden; width: 99%; float:left; height:130px}" +
 				".playback-button{padding:2px 2px}" +
 				".playback-button svg{width:20px; height:20px;}" + 
 				".playback-button svg polygon{fill:black;}" + 
