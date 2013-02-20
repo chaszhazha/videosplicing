@@ -566,7 +566,7 @@ var onPlayerStateChange;
 			{
 				video_doc.annotations[i].displayed = false;
 			}
-			private_methods.tick.call(that);
+			private_methods.check_annotations.call(that,video_pos);
 			$timeline_slider.find(".video_timeline_span").css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
 
 		};
