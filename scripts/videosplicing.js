@@ -4,7 +4,7 @@
 //TODO: edit duration of an annotation
 
 //TODO: use keyboard navigation to jump to the next mark on the timeline
-
+//TODO: UI to delete a video, an annotation
 //TODO: when you rearrange the video icons and the current video ends up at then end but it is not the one being dragged, something weird will happen, fix this
 
 function Link(source_doc, target_doc) {
@@ -501,7 +501,103 @@ var onPlayerStateChange;
 		$annotation.css({opacity:annotation.opacity, top:annotation.rect.top + "px", left: annotation.rect.left + "px",
 			 width: annotation.rect.width + "px", height: annotation.rect.height + "px", color:annotation.foreground,
 			 backgroundColor: "rgba(" + annotation.background.r + "," + annotation.background.g + "," + annotation.background.b + "," + annotation.background.a + ")"});
+		
+		var annotation_double_click = function(event) {
+			//TODO: double click to edit the annotation's content and position
+			//TODO: Remove the annotation, then show the editable region as line 1081
+			console.log("Double clicked on an annotation");
+
+
+			return false;
+		};
+
+		$annotation.click(function() {
+			$annotation.mousedown(annotation_double_click);
+			setTimeout(function(){$annotation.unbind("mousedown", annotation_double_click)}, 600);
+			return false;
+		});
+
 		return $annotation;
+	};	
+	var region_mousemove = function(event) {
+		var $this = $(this);
+		var dx = event.pageX - $this.data("last_region_click").x;
+		var dy = event.pageY - $this.data("last_region_click").y;
+		var r = /(\d+)px/;
+		var top = parseInt($(this).css("top").match(r)[1]);
+		var tmp = $this.css("left");
+		var left = parseInt(tmp.match(r)[1]);
+		//console.log($(this).css("left"));
+		var width = parseInt($this.css("width").match(r)[1]);
+		var height = parseInt($this.css("height").match(r)[1]);
+		top += dy;
+		left += dx;
+		top = top >= 0 ? top : 0;
+		top = top < event.data.data("player_overlay").height() - height ? top : event.data.data("player_overlay").height() - height;
+		left = left >= 0 ? left:0;
+		left = left < event.data.data("player_overlay").width() - width ? left : event.data.data("player_overlay").width() - width;
+		$this.css({top: top + "px", left: left + "px"});
+		$this.data("last_region_click").x = event.pageX;
+		$this.data("last_region_click").y = event.pageY;
+		return false;
+	};
+	var region_mousewait = function(event) {
+		var $this = $(this);
+		if( (event.pageX - $this.data("first_region_click").x) * (event.pageX - $this.data("first_region_click").x) + (event.pageY - $this.data("first_region_click").y) * (event.pageY - $this.data("first_region_click").y) >= 25)
+		{
+			$this.data("last_region_click").x = event.pageX;
+			$this.data("last_region_click").y = event.pageY;
+			var $this = $(this);
+			//console.log("Ahah");
+			$this.unbind("mousemove", region_mousewait);
+			$this.unbind("mousemove", region_mousemove);
+			
+			event.data.unbind("mousemove". region_mousemove);
+			event.data.bind("mousemove.myEvents", event.data, function() { return function(event){ region_mousemove.call($this, event); } }());
+			$this.bind("mousemove", event.data, region_mousemove);
+			// add this to the parent playeroverlay to let it know which one to drag when there are more than one regions on the overlay
+		}
+	};
+	var region_doubleclick = function(event) {
+		var $this = $(this); 
+		$this.unbind("mousemove");
+		var $p_annotation = $this.find(".annotation-editable");
+		var text = $p_annotation.text();
+		$p_annotation.remove();
+		var $textarea = $('<textarea></textarea>');
+		$textarea.mousedown(function() {$textarea.focus(); return false;});
+		//$textarea.mousemove(function() {return false;});
+		$(this).append($textarea);;
+		$textarea.val(function(i, val) {return text;});
+		$textarea.css({maxWidth:"99%", maxHeight:"99%", minWidth:"99%", minHeight:"99%", padding:"0", margin:"0px"});
+		$textarea.focus();
+		$textarea.blur(function() {
+			// remove the textarea and add the text to the containing div
+			var text = $textarea.val();
+			$textarea.remove();
+			var $content = $("<p class='annotation-editable'></p>");
+			$content.text(function(i, value) {return text});
+			$this.append($content);
+		});
+	};
+	var region_mousedown = function(event) {
+		if($(event.target).hasClass("ui-resizable-handle")) return; // This would be the resizing event that gets handled by jQuery UI, so we don't need to worry about this
+		//Since we only care about how much the mouse has moved, we can just use the whole page as the coordination reference
+		var $this = $(this);
+		$this.data("first_region_click").x = event.pageX;
+		$this.data("first_region_click").y = event.pageY;
+		$this.bind("mousemove", event.data, region_mousewait);
+		
+		$this.mousedown(region_doubleclick);
+		setTimeout(function(){$this.unbind("mousedown", region_doubleclick)}, 600);
+		return false;
+	};	
+		
+	var region_mouseup = function(event) {
+		console.log("region mouseup ");
+		$(this).unbind("mousemove", region_mousemove);
+		$(this).unbind("mousemove", region_mousewait);
+		event.data.unbind("mousemove.myEvents");
 	};
 
 	var methods = {
@@ -624,6 +720,7 @@ var onPlayerStateChange;
 
 		//*************************************** Unbind the mouse move events here **********************************
 		this.mouseup(function() {
+			//TODO: after draggin the editable annotation region, this event will not be fired. Investigate this
 			that.unbind("mousemove.myEvents");
 			console.log("Mouse up");
 		});
@@ -1015,93 +1112,19 @@ var onPlayerStateChange;
 			$vid_span.css("left", (video_doc.videos[video_doc.current].position / video_doc.duration * 100.0).toFixed(2) + "%");
 			$vid_span.css("width", width);
 	    	};
-		
-		var first_click = {x:0, y:0};
-		var $region_bg;
-		var first_region_click = {x:0, y:0};
-		var last_region_click = {x:0, y:0};
-		var region_mousemove = function(event) {
-			var dx = event.pageX - last_region_click.x;
-			var dy = event.pageY - last_region_click.y;
-			var r = /(\d+)px/;
-			var top = parseInt($region_bg.css("top").match(r)[1]);
-			var tmp = $region_bg.css("left");
-			var left = parseInt(tmp.match(r)[1]);
-			//console.log($region_bg.css("left"));
-			var width = parseInt($region_bg.css("width").match(r)[1]);
-			var height = parseInt($region_bg.css("height").match(r)[1]);
-			top += dy;
-			left += dx;
-			top = top >= 0 ? top : 0;
-			top = top < option.player_height - height ? top : option.player_height - height;
-			left = left >= 0 ? left:0;
-			left = left < option.player_width - width ? left : option.player_width - width;
-			$region_bg.css({top: top + "px", left: left + "px"});
-			last_region_click.x = event.pageX;
-			last_region_click.y = event.pageY;
-			return false;
-		};
-		var region_mousewait = function(event) {
-			if( (event.pageX - first_region_click.x) * (event.pageX - first_region_click.x) + (event.pageY - first_region_click.y) * (event.pageY - first_region_click.y) >= 25)
-			{
-				last_region_click.x = event.pageX;
-				last_region_click.y = event.pageY;
-				//console.log("Ahah");
-				$region_bg.unbind("mousemove", region_mousewait);
-				$region_bg.unbind("mousemove", region_mousemove);
-				that.unbind("mousemove". region_mousemove);
-				that.mousemove(region_mousemove);
-				$region_bg.mousemove(region_mousemove);
-			}
-		};
-
-		var region_doubleclick = function(event) {
-			$region_bg.unbind("mousemove");
-			var $p_annotation = $region_bg.find(".annotation-editable");
-			var text = $p_annotation.text();
-			$p_annotation.remove();
-			var $textarea = $('<textarea></textarea>');
-			$textarea.mousedown(function() {$textarea.focus(); return false;});
-			//$textarea.mousemove(function() {return false;});
-			$region_bg.append($textarea);;
-			$textarea.val(function(i, val) {return text;});
-			$textarea.css({maxWidth:"99%", maxHeight:"99%", minWidth:"99%", minHeight:"99%", padding:"0", margin:"0px"});
-			$textarea.focus();
-			$textarea.blur(function() {
-				// remove the textarea and add the text to the containing div
-				var text = $textarea.val();
-				$textarea.remove();
-				var $content = $("<p class='annotation-editable'></p>");
-				$content.text(function(i, value) {return text});
-				$region_bg.append($content);
-			});
-		};
-		var region_mousedown = function(event) {
-			if($(event.target).hasClass("ui-resizable-handle")) return; // This would be the resizing event that gets handled by jQuery UI, so we don't need to worry about this
-			//Since we only care about how much the mouse has moved, we can just use the whole page as the coordination reference
-			first_region_click.x = event.pageX;
-			first_region_click.y = event.pageY;
-			$region_bg.mousemove(region_mousewait);
-			
-			$region_bg.mousedown(region_doubleclick);
-			setTimeout(function(){$region_bg.unbind("mousedown", region_doubleclick)}, 600);
-			return false;
-		};	
-		
-		var region_mouseup = function(event) {
-			$region_bg.unbind("mousemove", region_mousemove);
-			$region_bg.unbind("mousemove", region_mousewait);
-			that.unbind("mousemove", region_mousemove);
-		};	
+	
 		$player_overlay.mouseup(function() {
-			if($region_bg)
+			if($(this).data("region"))
 			{
-				$region_bg.unbind("mousemove");
+				$(this).data("region").unbind("mousemove");
 				that.unbind("mousemove", region_mousemove);
 			}
 		});
+		var first_click = {x:0, y:0};
 		var player_overlay_mousemove = function(event) {
-			if(! $region_bg) return;
+			
+			console.log($(this).data("region"));
+			if(! $(this).data("region")) return;
 			//console.log($player_overlay.offset());
 			var top = Math.min(first_click.y, event.pageY - $player_overlay.offset().top);
 			var left = Math.min(first_click.x, event.pageX - $player_overlay.offset().left);
@@ -1109,7 +1132,7 @@ var onPlayerStateChange;
 			var right = Math.max(first_click.x, event.pageX - $player_overlay.offset().left);
 			var width = right - left;
 			var height = bottom - top;
-			$region_bg.css({top: top, left:left, width:width + "px", height: height + "px"});
+			$(this).data("region").css({top: top, left:left, width:width + "px", height: height + "px"});
 		};
 		var player_overlay_mousewait = function(event) {
 			var pos = {x:event.pageX - $player_overlay.offset().left, y: event.pageY - $player_overlay.offset().top};
@@ -1119,12 +1142,15 @@ var onPlayerStateChange;
 				$player_overlay.unbind("mousemove", player_overlay_mousewait);
 				$player_overlay.mousemove(player_overlay_mousemove);
 
-				$region_bg = $("<div class='annotation_region'></div>");
-				$region_bg.mousedown(region_mousedown);
-				$region_bg.mouseup(region_mouseup);
+				var $region_bg = $("<div class='annotation_region'></div>");
+				$region_bg.data("first_region_click",{x:0, y:0});
+				$region_bg.data("last_region_click",{x:0, y:0});
+				$region_bg.bind("mousedown", that, region_mousedown);
+				$region_bg.bind("mouseup", that, region_mouseup);
 				
 				$player_overlay.append($region_bg);
 				$region_bg.css({width:0, height:0, top:first_click.y, left:first_click.x});
+				$(this).data("region",$region_bg);
 				$annotation_done_button.removeAttr("disabled");
 			}
 		};
@@ -1141,8 +1167,8 @@ var onPlayerStateChange;
 			$player_overlay.unbind("mousemove", player_overlay_mousewait);
 			//$annotation_done_button.removeAttr("disabled");
 			
-			if($region_bg) {
-				$region_bg.resizable({});
+			if($(this).data("region")) {
+				$(this).data("region").resizable({});
 				$player_overlay.css("cursor","default");
 				$player_overlay.unbind("mousedown", player_overlay_mousedown);
 			}
@@ -1168,7 +1194,8 @@ var onPlayerStateChange;
 		};
 		$annotate_button.click(annotate_button_onclick);
 		$cancel_region_selection_button.click(function() {
-			if($region_bg)
+			var $region_bg = that.data("player_overlay").find(".annotation_region");
+			if($region_bg.length > 0)
 			{
 				$region_bg.unbind("mousemove");
 				$region_bg.remove();
@@ -1188,7 +1215,10 @@ var onPlayerStateChange;
 
 		var annotation_done_button_onclick = function() {
 			//annotation format: {content: "", duration: 10, position:0, top:0, bottom:0,left: 0, right:0, background:{r:120,g:120,b:120, a:0.6}, foreground: "#ffffff"};
+			
+			//TODO: add this button to each region, cuz otherwise when there are more than one editable regions we don't know which one to pick			
 			var video_doc = that.data("video_doc");
+			var $region_bg = that.data("player_overlay").find(".annotation_region");
 			var textarea_annotation = $region_bg.find("textarea");
 			var content = "";
 			if(textarea_annotation.length != 0)
