@@ -590,6 +590,7 @@ var onPlayerStateChange;
 		
 		$this.mousedown(region_doubleclick);
 		setTimeout(function(){$this.unbind("mousedown", region_doubleclick)}, 600);
+		
 		return false;
 	};	
 		
@@ -598,6 +599,15 @@ var onPlayerStateChange;
 		$(this).unbind("mousemove", region_mousemove);
 		$(this).unbind("mousemove", region_mousewait);
 		event.data.unbind("mousemove.myEvents");
+
+		//Somehow the mouseup event on the plugin will no longer get fired after you drag the annotation region, this is a hack to fix that.
+		event.data.unbind("mouseup",mouseup_unbind);
+		event.data.mouseup(mouseup_unbind);
+	};
+
+	var mouseup_unbind = function() {
+		console.log("Plugin mouseup");
+		$(this).unbind("mousemove.myEvents");
 	};
 
 	var methods = {
@@ -719,11 +729,7 @@ var onPlayerStateChange;
 		this.data("video_doc" , new CompositeVideo());
 
 		//*************************************** Unbind the mouse move events here **********************************
-		this.mouseup(function() {
-			//TODO: after draggin the editable annotation region, this event will not be fired. Investigate this
-			that.unbind("mousemove.myEvents");
-			console.log("Mouse up");
-		});
+		this.mouseup( mouseup_unbind );
 
 		var video_doc = this.data("video_doc");
 		var $player_wrapper = $("div#player_wrapper");
