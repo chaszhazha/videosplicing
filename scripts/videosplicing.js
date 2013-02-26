@@ -209,6 +209,7 @@ var onPlayerStateChange;
 			check_annotations.call(this, this.data("player").getCurrentTime());
 		}
 	};
+
 	var render_annotation_marks = function(annotation, i, index) {
 		var $group = $("<span class='annotation_group'></span>");
 		var $bar = $("<span class='annotation_bar'></span>");
@@ -322,15 +323,7 @@ var onPlayerStateChange;
 			$(this).removeClass("annotation_end_hover");
 			$(this).css("top", that.data("timeline_slider").height() / 2 - 4 + "px");
 		});
-	}
-
-
-
-
-
-
-
-
+	};
 
 	var render_timeline_marks = function(index) {
 		var that = this;
@@ -351,7 +344,8 @@ var onPlayerStateChange;
 			var left = (video_clip.position/video_doc.duration * 100.0).toFixed(2) + "%";
 			$bar.css("left", left);
 		}
-	    }
+	    };
+
 	    var video_icon_clicked = function(event) {
 		// The this keyword is the video splicer jquery object
 		var $li = $(event.delegateTarget);
@@ -384,7 +378,8 @@ var onPlayerStateChange;
 
 		this.data("range_selector").slider("option", {values:[video_doc.videos[video_doc.current].start + 0, video_doc.videos[video_doc.current].end], 
 								max: video_doc.videos[video_doc.current].video_length});
-	    }
+	    };
+
 	    var switch_to_next_video = function(video_doc) {
 		for(var i = 0; i < video_doc.annotations_shown.length; i++) {
 			video_doc.annotations_shown[i].remove();
@@ -443,7 +438,7 @@ var onPlayerStateChange;
 				video_doc.videos[video_doc.current].annotations[i].displayed = true;
 			}
 		}
-	}
+	};
 
 	var check_annotations = function(player_time) {
 		var video_doc = this.data("video_doc");
@@ -470,7 +465,8 @@ var onPlayerStateChange;
 				annotation.displayed = false;
 			}
 		}
-	}
+	};
+
 	var tick = function(switchvideo) {
 		if(switchvideo == null)
 			switchvideo = true;
@@ -491,7 +487,8 @@ var onPlayerStateChange;
 			if(switchvideo)	
 				switch_to_next_video.call(this, video_doc);
 		}
-	}
+	};
+
 	var show_annotation = function(a) {
 		// annotation should be an object that has properties like text, rect location and size, opacity, start_position, end_position  etc
 		var default_annotation = {opacity:0.6, rect: {top:20, left:20, width:100, height:100}, content:""};
@@ -505,7 +502,8 @@ var onPlayerStateChange;
 			 width: annotation.rect.width + "px", height: annotation.rect.height + "px", color:annotation.foreground,
 			 backgroundColor: "rgba(" + annotation.background.r + "," + annotation.background.g + "," + annotation.background.b + "," + annotation.background.a + ")"});
 		return $annotation;
-	}
+	};
+
 	var methods = {
 	    init: function(opt) {
 		var player;
