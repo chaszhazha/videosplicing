@@ -167,6 +167,7 @@ var onPlayerStateChange;
 		video_clip.annotations[i].position = Math.max(video_clip.annotations[$bar.data("indices").annotation_ind].position , video_clip.start);
 		video_clip.annotations[i].position = Math.min(video_clip.annotations[$bar.data("indices").annotation_ind].position , video_clip.end);
 		video_clip.annotations[i].end = video_clip.annotations[i].position + video_clip.annotations[i].duration;
+		//console.log("new annotation position: " + video_clip.annotations[i].position);
 		//TODO: need to put the drawing of the bar marks of one annotation into one function, and put those bars and spans into one grouping span
 		var annotation_start_position = video_clip.annotations[i].position > video_clip.start ? (video_clip.position + video_clip.annotations[i].position - video_clip.start) : video_clip.position;
 		var shrink = Math.max(0, annotation_start_position - (video_clip.position + video_clip.annotations[i].position - video_clip.start));
@@ -180,7 +181,67 @@ var onPlayerStateChange;
 			check_annotations.call(this, this.data("player").getCurrentTime());
 		}
 	};
-
+	var render_annotation_marks = function(annotation, i, index) {
+		var $group = $("<span class='annotation_group'></span>");
+		var $bar = $("<span class='annotation_bar'></span>");
+		$bar.data("indices",{video_ind:index, annotation_ind:i});
+		this.data("timeline_slider").append($group);
+		$group.append($bar);
+		var timer = null;
+		var that = this;
+			
+		$bar.mousedown(function(event) {
+			var $this = $(this);
+			timer = setTimeout(function() {
+				$this.addClass("annotation_bar_chosen");
+				$this.data("preX", event.pageX);
+				$this.bind("mousemove", $this, function() { return function(event) {annotation_bar_mousemove.call(that,event);} } ());
+				var unbind_barmousemove = function() {$this.unbind("mousemove"); that.unbind("mouseup", unbind_barmousemove)};
+				that.mouseup(unbind_barmousemove);
+				that.bind("mousemove.myEvents", $this, function() { return function(event) {annotation_bar_mousemove.call(that,event);} } ());
+				timer = null;
+			} ,1000);
+			return false;
+		});	
+		$bar.mouseup(function(event) {
+			if(timer)
+			{
+				clearTimeout(timer);
+				timer = null;
+				that.data("timeline_slider").slider("option","value", (event.pageX - that.data("timeline_slider").offset().left) / that.data("timeline_slider").width() * that.data("timeline_slider").slider("option","max"));
+				that.data("timeline_slider").slider("option", "stop").call(that.data("timeline_slider"), event);
+			}
+			$(this).removeClass("annotation_bar_chosen");
+			$(this).unbind("mousemove");
+			that.unbind("mousemove", annotation_bar_mousemove);
+		});
+		$bar.mouseenter(function(event) {
+			//console.log(event);
+			$(this).addClass("annotation_bar_hover");
+		});
+		$bar.mouseleave(function(event) {
+			if(timer)
+			{
+				clearTimeout(timer);
+				timer = null;
+			}
+			$(this).removeClass("annotation_bar_hover");
+			$(this).removeClass("annotation_bar_chosen");
+		});
+		// These are the starting and ending position for the annotation on the timeline of the whole video doc
+		var video_doc = this.data("video_doc");
+		var video_clip = video_doc.videos[index];
+		var annotation_start_position = annotation.position > video_clip.start ? (video_clip.position + annotation.position - video_clip.start) : video_clip.position;
+		var shrink = Math.max(0, annotation_start_position - (video_clip.position + annotation.position - video_clip.start));
+		var annotation_end_position = Math.min(video_clip.position + video_clip.duration, annotation_start_position + annotation.duration - shrink);
+		var left = (annotation_start_position/video_doc.duration * 100.0).toFixed(2) + "%";
+		var width = ((annotation_end_position - annotation_start_position)/video_doc.duration * 100.0).toFixed(2) + "%"
+		$bar.css("left", left);
+			
+		var $annotation_span = $("<span class='annotation_span'></span>");
+		$annotation_span.css({left:left, width: width});
+		$group.append($annotation_span);
+	}
 	var render_timeline_marks = function(index) {
 		var that = this;
 		var video_doc = this.data("video_doc");
@@ -189,65 +250,9 @@ var onPlayerStateChange;
 		//add annotation bars to the time line slider
 		for(var i = 0; i < video_clip.annotations.length; i++)
 		{
-			var $group = $("<span class='annotation_group'></span>");
 			if(video_clip.annotations[i].position > video_clip.end || video_clip.annotations[i].position + video_clip.annotations[i].duration < video_clip.start)
 				continue;
-			var $bar = $("<span class='annotation_bar'></span>");
-			$bar.data("indices",{video_ind:index, annotation_ind:i});
-			this.data("timeline_slider").append($group);
-			$group.append($bar);
-			var timer = null;
-			
-			$bar.mousedown(function(event) {
-				console.log(that);
-				var $this = $(this);
-				timer = setTimeout(function() {
-					$this.addClass("annotation_bar_chosen");
-					$this.data("preX", event.pageX);
-					$this.bind("mousemove", $this, function() { return function(event) {annotation_bar_mousemove.call(that,event);} } ());
-					var unbind_barmousemove = function() {$this.unbind("mousemove"); that.unbind("mouseup", unbind_barmousemove)};
-					that.mouseup(unbind_barmousemove);
-					that.bind("mousemove.myEvents", $this, function() { return function(event) {annotation_bar_mousemove.call(that,event);} } ());
-					timer = null;
-				} ,1000);
-				return false;
-			});	
-			$bar.mouseup(function(event) {
-				if(timer)
-				{
-					clearTimeout(timer);
-					timer = null;
-					that.data("timeline_slider").slider("option","value", (event.pageX - that.data("timeline_slider").offset().left) / that.data("timeline_slider").width() * that.data("timeline_slider").slider("option","max"));
-					that.data("timeline_slider").slider("option", "stop").call(that.data("timeline_slider"), event);
-				}
-				$(this).removeClass("annotation_bar_chosen");
-				$(this).unbind("mousemove");
-				that.unbind("mousemove", annotation_bar_mousemove);
-			});
-			$bar.mouseenter(function(event) {
-				//console.log(event);
-				$(this).addClass("annotation_bar_hover");
-			});
-			$bar.mouseleave(function(event) {
-				if(timer)
-				{
-					clearTimeout(timer);
-					timer = null;
-				}
-				$(this).removeClass("annotation_bar_hover");
-				$(this).removeClass("annotation_bar_chosen");
-			});
-			// These are the starting and ending position for the annotation on the timeline of the whole video doc
-			var annotation_start_position = video_clip.annotations[i].position > video_clip.start ? (video_clip.position + video_clip.annotations[i].position - video_clip.start) : video_clip.position;
-			var shrink = Math.max(0, annotation_start_position - (video_clip.position + video_clip.annotations[i].position - video_clip.start));
-			var annotation_end_position = Math.min(video_clip.position + video_clip.duration, annotation_start_position + video_clip.annotations[i].duration - shrink);
-			var left = (annotation_start_position/video_doc.duration * 100.0).toFixed(2) + "%";
-			var width = ((annotation_end_position - annotation_start_position)/video_doc.duration * 100.0).toFixed(2) + "%"
-			$bar.css("left", left);
-			
-			var $annotation_span = $("<span class='annotation_span'></span>");
-			$annotation_span.css({left:left, width: width});
-			$group.append($annotation_span);
+			render_annotation_marks.apply(this, [video_clip.annotations[i], i, index]);
 		}
 		if(index != 0)
 		{
@@ -320,7 +325,6 @@ var onPlayerStateChange;
 			this.data("range_selector").slider("option","max",video_doc.videos[0].video_length);
 			this.data("timeline_slider").slider("option","value",0);
 			this.data("play_button").find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
-			video_doc.annotations = video_doc.videos[0].annotations.slice(0);
 		}
 		else {
 			console.log("Switch to the next video");
@@ -334,7 +338,6 @@ var onPlayerStateChange;
 	    		this.data("range_selector").slider("option","max",video_doc.videos[video_doc.current].video_length);
 	    		this.data("range_selector").slider("option","values",[left, right]);
 			var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
-			video_doc.annotations = video_doc.videos[video_doc.current].annotations.slice(0);
 			player.loadVideoById( {videoId:video_doc.videos[video_doc.current].vid,
 					startSeconds:start_at});
 		}
@@ -342,13 +345,13 @@ var onPlayerStateChange;
 		$vid_span.css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
 
 		$($video_icons[video_doc.current]).addClass("current-video");
-		for(var i = 0; i < video_doc.annotations.length; i++) {
-			if(video_doc.annotations[i].position < video_doc.videos[video_doc.current].start && video_doc.annotations[i].end > video_doc.videos[video_doc.current].end)
+		for(var i = 0; i < video_doc.videos[video_doc.current].annotations.length; i++) {
+			if(video_doc.videos[video_doc.current].annotations[i].position < video_doc.videos[video_doc.current].start && video_doc.videos[video_doc.current].annotations[i].end > video_doc.videos[video_doc.current].end)
 			{
 				console.log("Showing annotation on start of a video clip");
-				var $annotation = show_annotation.call(that, video_doc.annotations[i]);
+				var $annotation = show_annotation.call(that, video_doc.videos[video_doc.current].annotations[i]);
 				video_doc.annotations_shown.push($annotation);
-				video_doc.annotations[i].displayed = true;
+				video_doc.videos[video_doc.current].annotations[i].displayed = true;
 			}
 		}
 	}
@@ -356,15 +359,15 @@ var onPlayerStateChange;
 	var check_annotations = function(player_time) {
 		var video_doc = this.data("video_doc");
 		//First check if there are new annotations to show
-		for(var i = 0; i < video_doc.annotations.length; i++)
+		for(var i = 0; i < video_doc.videos[video_doc.current].annotations.length; i++)
 		{
-			if( video_doc.annotations[i].position < player_time && video_doc.annotations[i].end > player_time)
+			if( video_doc.videos[video_doc.current].annotations[i].position < player_time && video_doc.videos[video_doc.current].annotations[i].end > player_time)
 			{
-				if(video_doc.annotations[i].displayed)
+				if(video_doc.videos[video_doc.current].annotations[i].displayed)
 					continue;
-				var $annotation = show_annotation.call(this, video_doc.annotations[i]);
+				var $annotation = show_annotation.call(this, video_doc.videos[video_doc.current].annotations[i]);
 				video_doc.annotations_shown.push($annotation);		
-				video_doc.annotations[i].displayed = true;
+				video_doc.videos[video_doc.current].annotations[i].displayed = true;
 			}
 		}
 			
@@ -639,12 +642,11 @@ var onPlayerStateChange;
 			// annotations, the Reposition function should take care of the annotations array of the video_doc
 			for(var i = 0; i < video_doc.annotations_shown.length; i++)
 				video_doc.annotations_shown[i].remove();
-			//console.log(video_doc.annotations);
 			video_doc.annotations_shown = [];
 			
-			for(var i = 0; i < video_doc.annotations.length; i++)
+			for(var i = 0; i < video_doc.videos[video_doc.current].annotations.length; i++)
 			{
-				video_doc.annotations[i].displayed = false;
+				video_doc.videos[video_doc.current].annotations[i].displayed = false;
 			}
 			check_annotations.call(that,video_pos);
 			$timeline_slider.find(".video_timeline_span").css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
@@ -707,12 +709,11 @@ var onPlayerStateChange;
 
 			for(var i = 0; i < video_doc.annotations_shown.length; i++)
 				video_doc.annotations_shown[i].remove();
-			//console.log(video_doc.annotations);
 			video_doc.annotations_shown = [];
 			
-			for(var i = 0; i < video_doc.annotations.length; i++)
+			for(var i = 0; i < video_doc.videos[video_doc.current].annotations.length; i++)
 			{
-				video_doc.annotations[i].displayed = false;
+				video_doc.videos[video_doc.current].annotations[i].displayed = false;
 			}
 			//update the annotations here and not in the tick function
 			check_annotations.call(that, ui.value);
@@ -833,13 +834,11 @@ var onPlayerStateChange;
 			$range_selector.slider("option","values",[ video_doc.videos[0].start + 0 , video_doc.videos[0].start + video_doc.videos[0].duration]);
 			$play_button.find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
 			tick.call(that);
-			video_doc.annotations = video_doc.videos[0].annotations.slice(0);
-			for(var i = 0; i < video_doc.annotations.length; i++)
+			for(var i = 0; i < video_doc.videos[video_doc.current].annotations.length; i++)
 			{
-				if(video_doc.annotations[i].displayed)
-					video_doc.annotations[i].displayed = false;
+				if(video_doc.videos[video_doc.current].annotations[i].displayed)
+					video_doc.videos[video_doc.current].annotations[i].displayed = false;
 			}
-			//console.log(video_doc.annotations);
 			video_doc.annotations_shown = [];
 		};
 		$("#stop_button").click(stop_button_onclick);	
@@ -1130,14 +1129,12 @@ var onPlayerStateChange;
 			video_doc.videos[video_doc.current].annotations.push(annotation);
 			var $annotation = show_annotation.call(that, annotation);
 			video_doc.annotations_shown.push($annotation);
-			video_doc.annotations.push(new VideoAnnotation(annotation)); // If we just pass annotation here, it will be passes by reference and two arrays will have the same copy of the object which was not how the video_doc.annotations array was constructed
-			video_doc.annotations[video_doc.annotations.length - 1].displayed = true;
-			console.log(video_doc.annotations[video_doc.annotations.length - 1]);
+			video_doc.videos[video_doc.current].annotations[video_doc.videos[video_doc.current].annotations.length - 1].displayed = true;
 			$region_bg.remove();
 			$annotation_done_button.css("display","none");
 			$cancel_region_selection_button.css("display","none");
 			$annotate_button.css("display","inline");
-			render_timeline_marks.call(that, video_doc.current);
+			render_annotation_marks.apply(that,[annotation, video_doc.videos[video_doc.current].annotations.length - 1, video_doc.current]);
 		};
 		$annotation_done_button.click(annotation_done_button_onclick);
 
@@ -1210,7 +1207,6 @@ var onPlayerStateChange;
 		video_doc.videos[0].isCurrent = true;
 		var $timeline_slider = this.data("timeline_slider");
 		$timeline_slider.slider("option","max", videoDocObj.duration);
-		video_doc.annotations = video_doc.videos[0].annotations.slice(0);
 		//console.log(video_doc);
 		if(videoDocObj.videos.length > 0) {
 			this.data("range_selector").slider("option","max", videoDocObj.videos[0].video_length);
