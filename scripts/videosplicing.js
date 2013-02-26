@@ -7,6 +7,8 @@
 //TODO: UI to delete a video, an annotation
 //TODO: when you rearrange the video icons and the current video ends up at then end but it is not the one being dragged, something weird will happen, fix this
 
+//TODO: prevent cross site scripting during annotation text input
+
 function Link(source_doc, target_doc) {
 	this.source_doc = source_doc;
 	this.target_doc = target_doc;
@@ -506,8 +508,21 @@ var onPlayerStateChange;
 			//TODO: double click to edit the annotation's content and position
 			//TODO: Remove the annotation, then show the editable region as line 1081
 			console.log("Double clicked on an annotation");
-
-
+			var content = $annotation.text();
+			console.log(content);
+			console.log($annotation.css("opacity") + " " + $annotation.css("left"));
+			
+			/*
+			$annotation.remove();
+			var $region = $("<div class='annotation_region'></div>");
+			$player_overlay.append($region);
+			$region_bg.data("first_region_click",{x:0, y:0});
+			$region_bg.data("last_region_click",{x:0, y:0});
+			$region_bg.bind("mousedown", that, region_mousedown);
+			$region_bg.bind("mouseup", that, region_mouseup);
+			$region_bg.css({width:0, height:0, top:first_click.y, left:first_click.x});
+			$annotation_done_button.removeAttr("disabled");
+			*/
 			return false;
 		};
 
@@ -1128,8 +1143,6 @@ var onPlayerStateChange;
 		});
 		var first_click = {x:0, y:0};
 		var player_overlay_mousemove = function(event) {
-			
-			console.log($(this).data("region"));
 			if(! $(this).data("region")) return;
 			//console.log($player_overlay.offset());
 			var top = Math.min(first_click.y, event.pageY - $player_overlay.offset().top);
