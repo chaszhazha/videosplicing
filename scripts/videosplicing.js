@@ -1,10 +1,9 @@
 
-//TODO: mark the time on the timeline where there's a video switch
 //TODO: red position vertical bar for timeline pane view
 //TODO: edit annotation color and background color and opacity
 //TODO: edit duration of an annotation
 
-//TODO: indicate where the annotations are on the slider timeline and use keyboard navigation to jump to that positon
+//TODO: use keyboard navigation to jump to the next mark on the timeline
 
 
 function Link(source_doc, target_doc) {
@@ -133,7 +132,7 @@ function VideoAnnotation(a) {
 	var args = $.extend(true, {}, default_args, a);
 	this.content = args.content;
 	this.duration = args.duration;
-	this.position = args.position; // This should be the position that the annotation will show up in the timeline of the whole video.
+	this.position = args.position; // This should be the position that the annotation will show up in the video that it is associated with.
 	this.rect = {top:args.rect.top, bottom:args.rect.bottom, left: args.rect.left, right:args.rect.right, width: args.rect.right - args.rect.left, height: args.rect.bottom - args.rect.top};
 	this.rect.width = this.rect.width > 0 ? this.rect.width : 0;
 	this.rect.height = this.rect.height > 0 ? this.rect.height : 0;
@@ -154,18 +153,90 @@ var onPlayerStateChange;
 
 (function($){
 	var video_timer = null;
-	var private_methods = {
-	    render_timeline_marks: function(index) {
+	var annotation_bar_mousemove = function(event) {
+		//TODO: change the starting position of the annotation, change the bar's left, and redraw the corresponding annotation's span
+		var $bar = $(event.data);
+		var video_doc = this.data("video_doc");
+		var video_clip = video_doc.videos[$bar.data("indices").video_ind];
+		var dx = event.pageX - $bar.data("preX");
+		var delta = this.data("timeline_slider").slider("option","max") * dx / this.data("timeline_slider").width();
+		//console.log(delta);
+		$bar.data("preX", event.pageX);
+		var i = $bar.data("indices").annotation_ind;
+		video_clip.annotations[i].position += delta;
+		video_clip.annotations[i].position = Math.max(video_clip.annotations[$bar.data("indices").annotation_ind].position , video_clip.start);
+		video_clip.annotations[i].position = Math.min(video_clip.annotations[$bar.data("indices").annotation_ind].position , video_clip.end);
+		video_clip.annotations[i].end = video_clip.annotations[i].position + video_clip.annotations[i].duration;
+		//TODO: need to put the drawing of the bar marks of one annotation into one function, and put those bars and spans into one grouping span
+		var annotation_start_position = video_clip.annotations[i].position > video_clip.start ? (video_clip.position + video_clip.annotations[i].position - video_clip.start) : video_clip.position;
+		var shrink = Math.max(0, annotation_start_position - (video_clip.position + video_clip.annotations[i].position - video_clip.start));
+		var annotation_end_position = Math.min(video_clip.position + video_clip.duration, annotation_start_position + video_clip.annotations[i].duration - shrink);
+		var left = (annotation_start_position/video_doc.duration * 100.0).toFixed(2) + "%";
+		var width = ((annotation_end_position - annotation_start_position)/video_doc.duration * 100.0).toFixed(2) + "%";
+		$bar.css("left", left);
+		$bar.parent().find(".annotation_span").css({left:left, width:width});
+		if($bar.data("indices").video_ind == video_doc.current)
+		{
+			check_annotations.call(this, this.data("player").getCurrentTime());
+		}
+	};
+
+	var render_timeline_marks = function(index) {
+		var that = this;
 		var video_doc = this.data("video_doc");
 		var video_clip = video_doc.videos[index];
+		
 		//add annotation bars to the time line slider
 		for(var i = 0; i < video_clip.annotations.length; i++)
 		{
+			var $group = $("<span class='annotation_group'></span>");
 			if(video_clip.annotations[i].position > video_clip.end || video_clip.annotations[i].position + video_clip.annotations[i].duration < video_clip.start)
 				continue;
 			var $bar = $("<span class='annotation_bar'></span>");
-			this.data("timeline_slider").append($bar);
+			$bar.data("indices",{video_ind:index, annotation_ind:i});
+			this.data("timeline_slider").append($group);
+			$group.append($bar);
+			var timer = null;
 			
+			$bar.mousedown(function(event) {
+				console.log(that);
+				var $this = $(this);
+				timer = setTimeout(function() {
+					$this.addClass("annotation_bar_chosen");
+					$this.data("preX", event.pageX);
+					$this.bind("mousemove", $this, function() { return function(event) {annotation_bar_mousemove.call(that,event);} } ());
+					var unbind_barmousemove = function() {$this.unbind("mousemove"); that.unbind("mouseup", unbind_barmousemove)};
+					that.mouseup(unbind_barmousemove);
+					that.bind("mousemove.myEvents", $this, function() { return function(event) {annotation_bar_mousemove.call(that,event);} } ());
+					timer = null;
+				} ,1000);
+				return false;
+			});	
+			$bar.mouseup(function(event) {
+				if(timer)
+				{
+					clearTimeout(timer);
+					timer = null;
+					that.data("timeline_slider").slider("option","value", (event.pageX - that.data("timeline_slider").offset().left) / that.data("timeline_slider").width() * that.data("timeline_slider").slider("option","max"));
+					that.data("timeline_slider").slider("option", "stop").call(that.data("timeline_slider"), event);
+				}
+				$(this).removeClass("annotation_bar_chosen");
+				$(this).unbind("mousemove");
+				that.unbind("mousemove", annotation_bar_mousemove);
+			});
+			$bar.mouseenter(function(event) {
+				//console.log(event);
+				$(this).addClass("annotation_bar_hover");
+			});
+			$bar.mouseleave(function(event) {
+				if(timer)
+				{
+					clearTimeout(timer);
+					timer = null;
+				}
+				$(this).removeClass("annotation_bar_hover");
+				$(this).removeClass("annotation_bar_chosen");
+			});
 			// These are the starting and ending position for the annotation on the timeline of the whole video doc
 			var annotation_start_position = video_clip.annotations[i].position > video_clip.start ? (video_clip.position + video_clip.annotations[i].position - video_clip.start) : video_clip.position;
 			var shrink = Math.max(0, annotation_start_position - (video_clip.position + video_clip.annotations[i].position - video_clip.start));
@@ -176,7 +247,7 @@ var onPlayerStateChange;
 			
 			var $annotation_span = $("<span class='annotation_span'></span>");
 			$annotation_span.css({left:left, width: width});
-			this.data("timeline_slider").append($annotation_span);
+			$group.append($annotation_span);
 		}
 		if(index != 0)
 		{
@@ -185,8 +256,8 @@ var onPlayerStateChange;
 			var left = (video_clip.position/video_doc.duration * 100.0).toFixed(2) + "%";
 			$bar.css("left", left);
 		}
-	    },
-	    video_icon_clicked: function(event) {
+	    }
+	    var video_icon_clicked = function(event) {
 		// The this keyword is the video splicer jquery object
 		var $li = $(event.delegateTarget);
 		var video_doc = $li.data("video_doc");
@@ -202,7 +273,7 @@ var onPlayerStateChange;
 			$(video_icons[old_curr]).removeClass("current-video");
 			$(video_icons[video_doc.current]).addClass("current-video");
 			$li.data("player").cueVideoById( {videoId:video_doc.videos[video_doc.current].vid, startSeconds:video_doc.videos[video_doc.current].start});
-			$li.data("player").pauseVideo();
+			$li.data("player").pauseVideo();check_annotations
 		}
 		$li.data("player").seekTo(video_doc.videos[video_doc.current].start);
 		if(video_doc.isPlaying)
@@ -211,7 +282,7 @@ var onPlayerStateChange;
 		{
 			$li.data("player").pauseVideo();
 		}
-		private_methods.tick.call(this);
+		tick.call(this);
 		this.find(".video_timeline_span").remove();
 		var $vid_span = $("<span class='video_timeline_span'></span>");
 		this.data("timeline_slider").append($vid_span);
@@ -219,129 +290,130 @@ var onPlayerStateChange;
 
 		this.data("range_selector").slider("option", {values:[video_doc.videos[video_doc.current].start + 0, video_doc.videos[video_doc.current].end], 
 								max: video_doc.videos[video_doc.current].video_length});
-	    },
-		switch_to_next_video: function(video_doc) {
-			for(var i = 0; i < video_doc.annotations_shown.length; i++) {
-				video_doc.annotations_shown[i].remove();
-			}
-			var player = this.data("player");
-			var $video_icons = this.find(".video-icon");
-			$($video_icons[video_doc.current]).removeClass("current-video");
-			video_doc.annotations_shown = [];
-			if(video_doc.current == video_doc.videos.length -1)
-			{
-				// The last video finished playing, stop the timer and reset the current video to the first, also the handlers
-				video_doc.videos[video_doc.current].isCurrent = false;
-				video_doc.current = 0;
-				video_doc.videos[0].isCurrent = true;
-			    	video_doc.position = 0.0;
-			    	video_doc.isPlaying = false;
-			    	clearInterval(video_timer);
-			    	video_timer = null;
-
-				// load the first video if there are more than 1 videos, also reset the handles
-				if(video_doc.videos.length != 1)
-					player.loadVideoById( {videoId:video_doc.videos[0].vid,
-						startSeconds:video_doc.videos[0].start} );
-				else
-					player.seekTo(video_doc.videos[0].start);
-				player.pauseVideo();
-				this.data("range_selector").slider("option","values",[video_doc.videos[0].start, video_doc.videos[0].start + video_doc.videos[0].duration]);
-				this.data("range_selector").slider("option","max",video_doc.videos[0].video_length);
-				this.data("timeline_slider").slider("option","value",0);
-				this.data("play_button").find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
-				video_doc.annotations = video_doc.videos[0].annotations.slice(0);
-			}
-			else {
-				console.log("Switch to the next video");
-				//Swith to the next video, and change to range slider handles
-				video_doc.videos[video_doc.current].isCurrent = false;
-				video_doc.current++;
-				video_doc.videos[video_doc.current].isCurrent = true;
-				var left = video_doc.videos[video_doc.current].start; 
-		    		var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
-		    		//console.log(left + "<==>" + right);
-		    		this.data("range_selector").slider("option","max",video_doc.videos[video_doc.current].video_length);
-		    		this.data("range_selector").slider("option","values",[left, right]);
-				var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
-				video_doc.annotations = video_doc.videos[video_doc.current].annotations.slice(0);
-				player.loadVideoById( {videoId:video_doc.videos[video_doc.current].vid,
-						startSeconds:start_at});
-			}
-			var $vid_span = this.find(".video_timeline_span");
-			$vid_span.css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
-
-			$($video_icons[video_doc.current]).addClass("current-video");
-			for(var i = 0; i < video_doc.annotations.length; i++) {
-				if(video_doc.annotations[i].position < video_doc.videos[video_doc.current].start && video_doc.annotations[i].end > video_doc.videos[video_doc.current].end)
-				{
-					console.log("Showing annotation on start of a video clip");
-					var $annotation = private_methods.show_annotation.call(that, video_doc.annotations[i]);
-					video_doc.annotations_shown.push($annotation);
-					video_doc.annotations[i].displayed = true;
-				}
-			}
-		},
-
-		check_annotations: function(player_time) {
-			var video_doc = this.data("video_doc");
-			//First check if there are new annotations to show
-			for(var i = 0; i < video_doc.annotations.length; i++)
-			{
-				if(( ! video_doc.annotations[i].displayed) && video_doc.annotations[i].position < player_time && video_doc.annotations[i].end > player_time)
-				{
-					var $annotation = private_methods.show_annotation.call(this, video_doc.annotations[i]);
-					video_doc.annotations_shown.push($annotation);		
-					video_doc.annotations[i].displayed = true;
-				}
-			}
-			
-			//Second check if displayed annotations need to disappear
-			for(var i = 0; i < video_doc.annotations_shown.length; i++)
-			{
-				var annotation = video_doc.annotations_shown[i].data("annotation");
-				if(annotation && (annotation.end < player_time || annotation.position > player_time))
-				{
-					video_doc.annotations_shown[i].remove();
-				}
-			}
-		},
-		tick: function(switchvideo) {
-			if(switchvideo == null)
-				switchvideo = true;
-			var video_doc = this.data("video_doc");
-			var player = this.data("player");
-			var player_time = player.getCurrentTime();
-			//console.log(player_time);
-	
-			private_methods.check_annotations.call(this, player_time);
-			video_doc.position = video_doc.videos[video_doc.current].position + player_time - video_doc.videos[video_doc.current].start;
-			//console.log(this.position + " = " + player.getCurrentTime() + " - " + this.videos[this.current].start);
-			//** update the slider for playback position of the whole video doc
-			//console.log(video_doc.position);
-			this.data("timeline_slider").slider("option","value",video_doc.position);
-			if(video_doc.position + 0.1 > video_doc.videos[video_doc.current].position + video_doc.videos[video_doc.current].duration)
-			{
-				// Switch point reached
-				if(switchvideo)	
-					private_methods.switch_to_next_video.call(this, video_doc);
-			}
-		},
-		show_annotation: function(a) {
-			// annotation should be an object that has properties like text, rect location and size, opacity, start_position, end_position  etc
-			var default_annotation = {opacity:0.6, rect: {top:20, left:20, width:100, height:100}, content:""};
-			var annotation = $.extend(true, {}, default_annotation, a);
-			var $annotation = $("<div class = 'annotation'>" + annotation.content +"</div>");
-			var $player_overlay = this.data("player_overlay"); 
-			$player_overlay.append($annotation);
-			//console.log("content added to div#player_wrapper with width " + annotation.rect.width + "px and height " + annotation.rect.height + "px");
-			$annotation.data("annotation",annotation);
-			$annotation.css({opacity:annotation.opacity, top:annotation.rect.top + "px", left: annotation.rect.left + "px",
-				 width: annotation.rect.width + "px", height: annotation.rect.height + "px", color:annotation.foreground,
-				 backgroundColor: "rgba(" + annotation.background.r + "," + annotation.background.g + "," + annotation.background.b + "," + annotation.background.a + ")"});
-			return $annotation;
+	    }
+	    var switch_to_next_video = function(video_doc) {
+		for(var i = 0; i < video_doc.annotations_shown.length; i++) {
+			video_doc.annotations_shown[i].remove();
 		}
-	};
+		var player = this.data("player");
+		var $video_icons = this.find(".video-icon");
+		$($video_icons[video_doc.current]).removeClass("current-video");
+		video_doc.annotations_shown = [];
+		if(video_doc.current == video_doc.videos.length -1)
+		{
+			// The last video finished playing, stop the timer and reset the current video to the first, also the handlers
+			video_doc.videos[video_doc.current].isCurrent = false;
+			video_doc.current = 0;
+			video_doc.videos[0].isCurrent = true;
+		    	video_doc.position = 0.0;
+		    	video_doc.isPlaying = false;
+		    	clearInterval(video_timer);
+		    	video_timer = null;
+			// load the first video if there are more than 1 videos, also reset the handles
+			if(video_doc.videos.length != 1)
+				player.loadVideoById( {videoId:video_doc.videos[0].vid,
+					startSeconds:video_doc.videos[0].start} );
+			else
+				player.seekTo(video_doc.videos[0].start);
+			player.pauseVideo();
+			this.data("range_selector").slider("option","values",[video_doc.videos[0].start, video_doc.videos[0].start + video_doc.videos[0].duration]);
+			this.data("range_selector").slider("option","max",video_doc.videos[0].video_length);
+			this.data("timeline_slider").slider("option","value",0);
+			this.data("play_button").find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
+			video_doc.annotations = video_doc.videos[0].annotations.slice(0);
+		}
+		else {
+			console.log("Switch to the next video");
+			//Swith to the next video, and change to range slider handles
+			video_doc.videos[video_doc.current].isCurrent = false;
+			video_doc.current++;
+			video_doc.videos[video_doc.current].isCurrent = true;
+			var left = video_doc.videos[video_doc.current].start; 
+	    		var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
+	    		//console.log(left + "<==>" + right);
+	    		this.data("range_selector").slider("option","max",video_doc.videos[video_doc.current].video_length);
+	    		this.data("range_selector").slider("option","values",[left, right]);
+			var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
+			video_doc.annotations = video_doc.videos[video_doc.current].annotations.slice(0);
+			player.loadVideoById( {videoId:video_doc.videos[video_doc.current].vid,
+					startSeconds:start_at});
+		}
+		var $vid_span = this.find(".video_timeline_span");
+		$vid_span.css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
+
+		$($video_icons[video_doc.current]).addClass("current-video");
+		for(var i = 0; i < video_doc.annotations.length; i++) {
+			if(video_doc.annotations[i].position < video_doc.videos[video_doc.current].start && video_doc.annotations[i].end > video_doc.videos[video_doc.current].end)
+			{
+				console.log("Showing annotation on start of a video clip");
+				var $annotation = show_annotation.call(that, video_doc.annotations[i]);
+				video_doc.annotations_shown.push($annotation);
+				video_doc.annotations[i].displayed = true;
+			}
+		}
+	}
+
+	var check_annotations = function(player_time) {
+		var video_doc = this.data("video_doc");
+		//First check if there are new annotations to show
+		for(var i = 0; i < video_doc.annotations.length; i++)
+		{
+			if( video_doc.annotations[i].position < player_time && video_doc.annotations[i].end > player_time)
+			{
+				if(video_doc.annotations[i].displayed)
+					continue;
+				var $annotation = show_annotation.call(this, video_doc.annotations[i]);
+				video_doc.annotations_shown.push($annotation);		
+				video_doc.annotations[i].displayed = true;
+			}
+		}
+			
+		//Second check if displayed annotations need to disappear
+		for(var i = 0; i < video_doc.annotations_shown.length; i++)
+		{
+			var annotation = video_doc.annotations_shown[i].data("annotation");
+			if(annotation && (annotation.end < player_time || annotation.position > player_time))
+			{
+				video_doc.annotations_shown[i].remove();
+				annotation.displayed = false;
+			}
+		}
+	}
+	var tick = function(switchvideo) {
+		if(switchvideo == null)
+			switchvideo = true;
+		var video_doc = this.data("video_doc");
+		var player = this.data("player");
+		var player_time = player.getCurrentTime();
+		//console.log(player_time);
+
+		check_annotations.call(this, player_time);
+		video_doc.position = video_doc.videos[video_doc.current].position + player_time - video_doc.videos[video_doc.current].start;
+		//console.log(this.position + " = " + player.getCurrentTime() + " - " + this.videos[this.current].start);
+		//** update the slider for playback position of the whole video doc
+		//console.log(video_doc.position);
+		this.data("timeline_slider").slider("option","value",video_doc.position);
+		if(video_doc.position + 0.1 > video_doc.videos[video_doc.current].position + video_doc.videos[video_doc.current].duration)
+		{
+			// Switch point reached
+			if(switchvideo)	
+				switch_to_next_video.call(this, video_doc);
+		}
+	}
+	var show_annotation = function(a) {
+		// annotation should be an object that has properties like text, rect location and size, opacity, start_position, end_position  etc
+		var default_annotation = {opacity:0.6, rect: {top:20, left:20, width:100, height:100}, content:""};
+		var annotation = $.extend(true, {}, default_annotation, a);
+		var $annotation = $("<div class = 'annotation'>" + annotation.content +"</div>");
+		var $player_overlay = this.data("player_overlay"); 
+		$player_overlay.append($annotation);
+		//console.log("content added to div#player_wrapper with width " + annotation.rect.width + "px and height " + annotation.rect.height + "px");
+		$annotation.data("annotation",a);
+		$annotation.css({opacity:annotation.opacity, top:annotation.rect.top + "px", left: annotation.rect.left + "px",
+			 width: annotation.rect.width + "px", height: annotation.rect.height + "px", color:annotation.foreground,
+			 backgroundColor: "rgba(" + annotation.background.r + "," + annotation.background.g + "," + annotation.background.b + "," + annotation.background.a + ")"});
+		return $annotation;
+	}
 	var methods = {
 	    init: function(opt) {
 		var player;
@@ -423,6 +495,7 @@ var onPlayerStateChange;
 					"height:120px;" +
 					"margin-top: 20px" + 
 				"}" + 
+				"div#timeline #splicer_timeline_slider a.ui-slider-handle{background-image:url('css/ui-lightness/images/ui-icons_ef8c08_256x240.png'); background-position:3px -222px; background-clip:content-box}" +
 				".slider-wrapper{clear: left; padding: 0 4px 0 2px; margin: 0 -1px -1px -1px;}" + 
 				"div#timeline div#timeline_pane{overflow: hidden; width: 99%; float:left; height:130px}" +
 				".playback-button{padding:2px 2px}" +
@@ -442,6 +515,8 @@ var onPlayerStateChange;
 				".annotation { background: #444444; position:absolute;}" + 
 				".annotation_region textarea{resize:none;}" +
 				".annotation_bar { width: 2px; background-color: gray; height: 70%; position: absolute; z-index: 4; top:15%}" + 
+				".annotation_bar_hover {width:5px;}" + 
+				".annotation_bar_chosen {width:5px; background-color:orangered;}" +
 				".annotation_span {background-color:#aaaaaa; height:20%; position:absolute; top:40% ;z-index:1;}" +
 				".video_timeline_bar,.video_timeline_bar_edge{width: 2px; background-color: orange; height:100%; position: absolute; }" +
 				".video_timeline_span {background-color: orange; height:20%; position:absolute; top:40%}" +
@@ -454,13 +529,18 @@ var onPlayerStateChange;
     	    	swfobject.embedSWF("http://www.youtube.com/apiplayer?version=3&enablejsapi=1&playerapiid=player1", "YTplayerHolder", option.player_width, option.player_height, "9", null, null, params, atts);
 		this.data("video_doc" , new CompositeVideo());
 
+		//*************************************** Unbind the mouse move events here **********************************
+		this.mouseup(function() {
+			that.unbind("mousemove.myEvents");
+			console.log("Mouse up");
+		});
+
 		var video_doc = this.data("video_doc");
 		var $player_wrapper = $("div#player_wrapper");
 		var $player_overlay = $("div#player_overlay");
 		//$player_overlay.keydown(function(event) {return false;}); // Prevent the plugin getting the keydown event
 		$player_overlay.css({width:option.player_width, height:option.player_height});
 		this.data("player_overlay", $player_overlay);
-		
 		/* After removing an element, its associated data will also be removed
 		var $annotation = show_annotation();
 		$annotation.remove();
@@ -496,7 +576,7 @@ var onPlayerStateChange;
 							.append(new_li);
 						var new_img = new_li.find("img");
 						new_img.data("videoclip", video_doc.videos[video_doc.videos.length - 1]);
-						new_img.click((function(){return function(event) {private_methods.video_icon_clicked.call(that,event)} })());
+						new_img.click((function(){return function(event) {video_icon_clicked.call(that,event)} })());
 						new_img.data("video_doc",video_doc);
 						new_img.data("player",player);
 						that.data("timeline_slider").slider("option","max", video_doc.duration);
@@ -513,7 +593,7 @@ var onPlayerStateChange;
 
 						for(var v = 0; v < video_doc.videos.length; v ++)
 						{
-							private_methods.render_timeline_marks.apply(that,[v]);
+							render_timeline_marks.apply(that,[v]);
 						}
 						//redraw the video span on the timeline slider
 						var width =(video_doc.videos[video_doc.current].duration / video_doc.duration * 100.0).toFixed(2) + "%";
@@ -566,7 +646,7 @@ var onPlayerStateChange;
 			{
 				video_doc.annotations[i].displayed = false;
 			}
-			private_methods.check_annotations.call(that,video_pos);
+			check_annotations.call(that,video_pos);
 			$timeline_slider.find(".video_timeline_span").css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
 
 		};
@@ -575,6 +655,7 @@ var onPlayerStateChange;
 			timeline_slider_onchanged();
 		};
 		var timeline_slider_slidestart = function(event, ui) {
+			console.log("timeline_slider slide start");
 			if(video_timer) {
 				clearInterval(video_timer);
 				video_timer = null;
@@ -583,11 +664,12 @@ var onPlayerStateChange;
 			}
 		};
 		var timeline_slider_slidestop = function(event, ui) {
+			console.log("timeline_slider slide stop");
 			timeline_slider_onchanged();
 			if(that.data("video_doc").isPlaying) {
 				//console.log("is playing");
 				player.playVideo();
-				video_timer = setInterval( (function(videosplicer){ return function() {private_methods.tick.call(videosplicer)};}) (that) , 100);
+				video_timer = setInterval( (function(videosplicer){ return function() {tick.call(videosplicer)};}) (that) , 100);
 			}
 			else
 				player.pauseVideo();
@@ -608,13 +690,13 @@ var onPlayerStateChange;
 			$timeline_slider.slider("option","max", video_doc.duration);
 
 			//also reposition the annotation bars and the video bars on the timeline slider
-			that.find(".annotation_bar").remove();
-			that.find(".video_timeline_bar").remove();
-			that.find(".annotation_span").remove();
+			$timeline_slider.find(".annotation_bar").remove();
+			$timeline_slider.find(".video_timeline_bar").remove();
+			$timeline_slider.find(".annotation_span").remove();
 
 			for(var v = 0; v < video_doc.videos.length; v ++)
 			{
-				private_methods.render_timeline_marks.apply(that,[v]);
+				render_timeline_marks.apply(that,[v]);
 			}
 			//redraw the video span on the timeline slider
 			var $vid_span = $timeline_slider.find(".video_timeline_span");
@@ -633,7 +715,7 @@ var onPlayerStateChange;
 				video_doc.annotations[i].displayed = false;
 			}
 			//update the annotations here and not in the tick function
-			private_methods.check_annotations.call(that, ui.value);
+			check_annotations.call(that, ui.value);
 		};
 		var range_selector_slidestart = function(event, ui) {
 			var video_doc = that.data("video_doc");
@@ -750,7 +832,7 @@ var onPlayerStateChange;
 			$range_selector.slider("option","max",video_doc.videos[0].video_length);
 			$range_selector.slider("option","values",[ video_doc.videos[0].start + 0 , video_doc.videos[0].start + video_doc.videos[0].duration]);
 			$play_button.find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
-			private_methods.tick.call(that);
+			tick.call(that);
 			video_doc.annotations = video_doc.videos[0].annotations.slice(0);
 			for(var i = 0; i < video_doc.annotations.length; i++)
 			{
@@ -783,7 +865,7 @@ var onPlayerStateChange;
 				return;
 			}		
 			video_doc.isPlaying = true;
-			video_timer = setInterval((function(videosplicer){ return function() {private_methods.tick.call(videosplicer)};}) (that) ,100);
+			video_timer = setInterval((function(videosplicer){ return function() {tick.call(videosplicer)};}) (that) ,100);
 			
 			var cur_video =  video_doc.videos[video_doc.current];
 			var start;
@@ -831,9 +913,20 @@ var onPlayerStateChange;
 				position_counter += video_doc.videos[i].duration;
 			}
 			// reposition the timeline slider handle
-			//console.log(position);
-			//console.log(video_doc.current);
 			$timeline_slider.slider("option","value", position);
+			$timeline_slider.find(".annotation_bar").remove();
+			$timeline_slider.find(".video_timeline_bar").remove();
+			$timeline_slider.find(".annotation_span").remove();
+
+			for(var v = 0; v < video_doc.videos.length; v ++)
+			{
+				render_timeline_marks.apply(that,[v]);
+			}
+			//redraw the video span on the timeline slider
+			var $vid_span = $timeline_slider.find(".video_timeline_span");
+			var width =(video_doc.videos[video_doc.current].duration / video_doc.duration * 100.0).toFixed(2) + "%";
+			$vid_span.css("left", (video_doc.videos[video_doc.current].position / video_doc.duration * 100.0).toFixed(2) + "%");
+			$vid_span.css("width", width);
 	    	};
 		
 		var first_click = {x:0, y:0};
@@ -1035,7 +1128,7 @@ var onPlayerStateChange;
 			// save the annotation
 			var annotation = new VideoAnnotation({content:content, duration: 10, position: player.getCurrentTime(), rect:{top: top, bottom: bottom, left:left, right: right},background:{r:r, g:g, b:b, a:a}, foreground:foreground});
 			video_doc.videos[video_doc.current].annotations.push(annotation);
-			var $annotation = private_methods.show_annotation.call(that, annotation);
+			var $annotation = show_annotation.call(that, annotation);
 			video_doc.annotations_shown.push($annotation);
 			video_doc.annotations.push(new VideoAnnotation(annotation)); // If we just pass annotation here, it will be passes by reference and two arrays will have the same copy of the object which was not how the video_doc.annotations array was constructed
 			video_doc.annotations[video_doc.annotations.length - 1].displayed = true;
@@ -1044,7 +1137,7 @@ var onPlayerStateChange;
 			$annotation_done_button.css("display","none");
 			$cancel_region_selection_button.css("display","none");
 			$annotate_button.css("display","inline");
-			private_methods.render_timeline_marks.call(that, video_doc.videos.length - 1);
+			render_timeline_marks.call(that, video_doc.current);
 		};
 		$annotation_done_button.click(annotation_done_button_onclick);
 
@@ -1118,7 +1211,7 @@ var onPlayerStateChange;
 		var $timeline_slider = this.data("timeline_slider");
 		$timeline_slider.slider("option","max", videoDocObj.duration);
 		video_doc.annotations = video_doc.videos[0].annotations.slice(0);
-		console.log(video_doc);
+		//console.log(video_doc);
 		if(videoDocObj.videos.length > 0) {
 			this.data("range_selector").slider("option","max", videoDocObj.videos[0].video_length);
 			this.data("range_selector").slider("option", "values",[videoDocObj.videos[0].start + 0, videoDocObj.videos[0].start + videoDocObj.videos[0].duration]);
@@ -1180,7 +1273,7 @@ var onPlayerStateChange;
 							$(vid_icon_img[index]).data("videoclip",videoDocObj.videos[index]);
 							$(vid_icon_img[index]).data("video_doc",video_doc);
 							$(vid_icon_img[index]).data("player",that.data("player"));
-							$(vid_icon_img[index]).click((function(){return function(event) {private_methods.video_icon_clicked.call(that,event)} })());
+							$(vid_icon_img[index]).click((function(){return function(event) {video_icon_clicked.call(that,event)} })());
 						}
 						else {
 							//TODO: response returned an empty array, video is not available, show error message 
@@ -1193,7 +1286,7 @@ var onPlayerStateChange;
 				xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + value.vid + "&part=contentDetails,snippet&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
 				xmlhttp.send();
 
-				private_methods.render_timeline_marks.apply(that,[index]);
+				render_timeline_marks.apply(that,[index]);
 			} );
 				
 		}
