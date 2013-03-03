@@ -1,7 +1,7 @@
 //TODO: when an annotation's end point is selected, don't disselct on mouse up or mouse leave, but keep the selection to allow fine tunes on keyboard, and think of a way to disselect, $.blur() is a good place to start
 
 //TODO: use keyboard navigation to jump to the next mark on the timeline
-//TODO: UI to delete a video, an annotation
+//TODO: UI to delete a video
 //TODO: when you rearrange the video icons and the current video ends up at then end but it is not the one being dragged, something weird will happen, fix this
 
 //TODO: red position vertical bar for timeline pane view
@@ -224,7 +224,7 @@ var onPlayerStateChange;
 
 	var render_annotation_marks = function(annotation, i, index) {
 		var $group = $("<span class='annotation_group'></span>");
-		var $bar = $("<span class='annotation_bar'></span>");
+		var $bar = $("<span class='annotation_bar' tabindex='0'></span>");
 		$bar.data("indices",{video_ind:index, annotation_ind:i});
 		this.data("timeline_slider").append($group);
 		$group.append($bar);
@@ -235,6 +235,7 @@ var onPlayerStateChange;
 		$bar.mousedown(function(event) {
 			var $this = $(this);
 			timer = setTimeout(function() {
+				$this.focus();
 				$this.addClass("annotation_bar_chosen");
 				$this.data("preX", event.pageX);
 				$this.bind("mousemove", $this, function() { return function(event) {annotation_bar_mousemove.call(that,event);} } ());
@@ -261,9 +262,11 @@ var onPlayerStateChange;
 			$(this).mouseleave(bar_remove_chosen);
 			that.unbind("mousemove", annotation_bar_mousemove);
 		});
+		$bar.blur(function() {
+
+		});
 		$bar.mouseenter(function(event) {
 			//console.log(event);
-			$(this).addClass("annotation_bar_hover");
 		});
 		$bar.mouseleave(function(event) {
 			if(timer)
@@ -271,7 +274,9 @@ var onPlayerStateChange;
 				clearTimeout(timer);
 				timer = null;
 			}
-			$(this).removeClass("annotation_bar_hover");
+		});
+		$bar.keydown(function(event) {
+			//TODO: finetune the start position of the annotation
 		});
 
 		// These are the starting and ending position for the annotation on the timeline of the whole video doc
@@ -288,7 +293,7 @@ var onPlayerStateChange;
 		$annotation_span.css({left:left, width: width});
 		$group.append($annotation_span);
 
-		var $annotation_end = $("<span class='annotation_end'></span>");
+		var $annotation_end = $("<span class='annotation_end' tabindex='0'></span>");
 		var end_remove_chosen = function() {$(this).removeClass("annotation_end_chosen");};
 		$annotation_end.css({top: that.data("timeline_slider").height() / 2 - 4 + "px", left:(annotation_end_position/video_doc.duration * 100.0).toFixed(2) + "%" });
 		$group.append($annotation_end);
@@ -296,6 +301,8 @@ var onPlayerStateChange;
 		$annotation_end.mousedown(function(event) {
 			var $this = $(this);
 			timer = setTimeout(function() {
+				//TODO: make the span focusable and focus on this span
+				$this.focus();
 				$this.addClass("annotation_end_chosen");
 				$this.data("preX", event.pageX);
 				$this.bind("mousemove", $this, function() { return function(event) {annotation_end_mousemove.call(that,event);} } ());
@@ -317,14 +324,19 @@ var onPlayerStateChange;
 				that.data("timeline_slider").slider("option","value", (event.pageX - that.data("timeline_slider").offset().left) / that.data("timeline_slider").width() * that.data("timeline_slider").slider("option","max"));
 				that.data("timeline_slider").slider("option", "stop").call(that.data("timeline_slider"), event);
 			}
-			$(this).removeClass("annotation_end_chosen");
 			$(this).unbind("mousemove");
 			that.unbind("mousemove", annotation_end_mousemove);
 		});
 		$annotation_end.mouseenter(function(event) {
 			//console.log(event);
-			$(this).addClass("annotation_end_hover");
 			$(this).css("top", that.data("timeline_slider").height() / 2 - 5 + "px");
+		});
+		$annotation_end.keydown(function(event) {
+			console.log("Key down on annotation end");
+			//TODO: fine tune the annotation end position and duration
+		});
+		$annotation_end.blur(function() {
+			$(this).removeClass("annotation_end_chosen");
 		});
 		$annotation_end.mouseleave(function(event) {
 			if(timer)
@@ -332,8 +344,8 @@ var onPlayerStateChange;
 				clearTimeout(timer);
 				timer = null;
 			}
-			$(this).removeClass("annotation_end_hover");
-			$(this).css("top", that.data("timeline_slider").height() / 2 - 4 + "px");
+			if(! $(this).is(":focus"))
+				$(this).css("top", that.data("timeline_slider").height() / 2 - 4 + "px");
 		});
 		annotation.$group_mark = $group;
 	};
@@ -557,7 +569,7 @@ var onPlayerStateChange;
 		$player_overlay.append($annotation);
 		//console.log("content added to div#player_wrapper with width " + annotation.rect.width + "px and height " + annotation.rect.height + "px");
 		$annotation.data("annotation",annotation);
-		console.log(annotation.opacity);
+		//console.log(annotation.opacity);
 		$annotation.css({opacity:annotation.opacity, top:annotation.rect.top + "px", left: annotation.rect.left + "px",
 			 width: annotation.rect.width + "px", height: annotation.rect.height + "px", color:annotation.foreground,
 			 backgroundColor: "rgba(" + annotation.background.r + "," + annotation.background.g + "," + annotation.background.b + "," + annotation.background.a + ")"});
@@ -804,10 +816,10 @@ var onPlayerStateChange;
 				".annotation_region{border-style:dashed; border-width:2px;cursor:move;}" +  
 				".annotation_region textarea{resize:none;}" +
 				".annotation_bar { width: 2px; background-color: gray; height: 70%; position: absolute; z-index: 4; top:15%}" + 
-				".annotation_bar_hover {width:5px;}" + 
+				".annotation_bar:hover {width:5px;}" + 
 				".annotation_bar_chosen {width:5px; background-color:orangered;}" +
 				".annotation_end {z-index: 5; width: 8px; height:8px; -webkit-border-radius: 4px; -moz-border-radius: 4px; border-radius: 4px; position:absolute; background-color: gray;}" +
-				".annotation_end_hover {width: 10px; height:10px; -webkit-border-radius: 5px; -moz-border-radius: 5px; border-radius: 5px;}" + 
+				".annotation_end:hover, .annotation_end:focus {width: 10px; height:10px; -webkit-border-radius: 5px; -moz-border-radius: 5px; border-radius: 5px;}" + 
 				".annotation_end_chosen {width: 10px; height:10px; -webkit-border-radius: 5px; -moz-border-radius: 5px; border-radius: 5px; background-color:orangered;}" +
 				".annotation_span {background-color:#aaaaaa; height:20%; position:absolute; top:40% ;z-index:1;}" +
 				".video_timeline_bar,.video_timeline_bar_edge{width: 2px; background-color: orange; height:100%; position: absolute; }" +
