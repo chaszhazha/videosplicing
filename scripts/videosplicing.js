@@ -1,12 +1,11 @@
-
-//TODO: red position vertical bar for timeline pane view
-//TODO: edit annotation color and background color and opacity
-//TODO: edit duration of an annotation
+//TODO: when an annotation's end point is selected, don't disselct on mouse up or mouse leave, but keep the selection to allow fine tunes on keyboard, and think of a way to disselect, $.blur() is a good place to start
 
 //TODO: use keyboard navigation to jump to the next mark on the timeline
 //TODO: UI to delete a video, an annotation
 //TODO: when you rearrange the video icons and the current video ends up at then end but it is not the one being dragged, something weird will happen, fix this
 
+//TODO: red position vertical bar for timeline pane view
+//TODO: edit annotation color and background color and opacity
 //TODO: prevent cross site scripting during annotation text input
 
 function Link(source_doc, target_doc) {
@@ -29,13 +28,18 @@ function VideoClip(param) {
 	this.position = option.position;
 	this.video_length = option.video_length; //Duration of the youtube video 
 	this.isCurrent = false;
-	this.annotations = [];
+	this.annotations = []; // Note: Only add new annotations to this array using the AddAnnotation function
+	this.index = -1; // The index of this video clip in the array for all the video clips in the Composite Video
 }
 
+VideoClip.prototype.AddAnnotation = function(annotation) {
+	this.annotations.push(annotation);
+	annotation.index = this.annotations.length - 1;
+	annotation.video_index = this.index;
+};
 
 function CompositeVideo() { // Composite video class
 	this.videolinks = [];
-	this.annotations = []; // This is just a mutable copy of the annotations of the current video that are not displayed
 	this.annotations_shown = []; // This is an array for the jQuery selection of the annotation divs
 	this.videos = [];
 	this.current = 0; // the index of the currently played video
@@ -56,6 +60,9 @@ CompositeVideo.prototype.AddVideo = function(arg)
 		this.videos.push(arg);
 		this.videolinks.push(new Link(this, arg));
 		this.duration += arg.duration;
+		arg.index = this.videos.length - 1;
+		for(var i = 0; i < arg.annotations.length; i++)
+			arg.annotations[i].video_index = this.videos.length - 1;
 	}
 	else if(arg instanceof Array)
 	{
@@ -131,7 +138,7 @@ CompositeVideo.prototype.getLinks = function() {
 }
 
 function VideoAnnotation(a) {
-	var default_args = {content: "", duration: 10, position:0, rect:{top:0, bottom:0,left: 0, right:0}, background:{r:120,g:120,b:120, a:0.6}, foreground: "#ffffff"};
+	var default_args = {content: "", duration: 10, position:0, rect:{top:0, bottom:0,left: 0, right:0}, background:{r:120,g:120,b:120, a:0.6}, foreground: "#ffffff", opacity:1.0};
 	var args = $.extend(true, {}, default_args, a);
 	this.content = args.content;
 	this.duration = args.duration;
@@ -145,8 +152,11 @@ function VideoAnnotation(a) {
 	this.background.b = args.background.b;
 	this.background.a = args.background.a;
 	this.foreground = args.foreground;
+	this.opacity = args.opacity;
 	this.duration = args.duration;
 	this.end = this.position + this.duration;
+	this.video_index = -1; //The index of the video clip that has this annotation in the video document
+	this.index = -1; //The index of this annotation in the array of annotations for a video clip
 }
 
 
@@ -325,6 +335,7 @@ var onPlayerStateChange;
 			$(this).removeClass("annotation_end_hover");
 			$(this).css("top", that.data("timeline_slider").height() / 2 - 4 + "px");
 		});
+		annotation.$group_mark = $group;
 	};
 
 	var render_timeline_marks = function(index) {
@@ -464,6 +475,7 @@ var onPlayerStateChange;
 			if(annotation && (annotation.end < player_time || annotation.position > player_time))
 			{
 				video_doc.annotations_shown[i].remove();
+				video_doc.annotations_shown = video_doc.annotations_shown.slice(0,i).concat(video_doc.annotations_shown.slice(i + 1));
 				annotation.displayed = false;
 			}
 		}
@@ -536,24 +548,27 @@ var onPlayerStateChange;
 		$(this).parent().remove();
 	};
 
-	var show_annotation = function(a) {
+	var show_annotation = function(annotation) {
 		// annotation should be an object that has properties like text, rect location and size, opacity, start_position, end_position  etc
-		var default_annotation = {opacity:0.6, rect: {top:20, left:20, width:100, height:100}, content:""};
-		var annotation = $.extend(true, {}, default_annotation, a);
+		//var default_annotation = {opacity:0.6, rect: {top:20, left:20, width:100, height:100}, content:""};
+		//var annotation = $.extend(true, {}, default_annotation, a);
 		var $annotation = $("<div class = 'annotation'>" + annotation.content +"</div>");
 		var $player_overlay = this.data("player_overlay"); 
 		$player_overlay.append($annotation);
 		//console.log("content added to div#player_wrapper with width " + annotation.rect.width + "px and height " + annotation.rect.height + "px");
-		$annotation.data("annotation",a);
+		$annotation.data("annotation",annotation);
+		console.log(annotation.opacity);
 		$annotation.css({opacity:annotation.opacity, top:annotation.rect.top + "px", left: annotation.rect.left + "px",
 			 width: annotation.rect.width + "px", height: annotation.rect.height + "px", color:annotation.foreground,
 			 backgroundColor: "rgba(" + annotation.background.r + "," + annotation.background.g + "," + annotation.background.b + "," + annotation.background.a + ")"});
 		
 		var that = this;
+		var video_doc = that.data("video_doc");
 		var annotation_double_click = function(event) {
-			//TODO: double click to edit the annotation's content and position
-			//TODO: Remove the annotation, then show the editable region as line 1081
-			console.log("Double clicked on an annotation");
+			// Double click to edit the annotation's content and position
+			// Remove the annotation, then show the editable region
+			//console.log(annotation);
+			//console.log("Double clicked on an annotation");
 			var content = $annotation.text();
 			console.log(content);
 			$annotation.remove();
@@ -565,17 +580,20 @@ var onPlayerStateChange;
 			$region_bg.data("last_region_click",{x:0, y:0});
 			$region_bg.bind("mousedown", this, region_mousedown);
 			$region_bg.bind("mouseup", this, region_mouseup);
+			$region_bg.text(content);
 				
 			$region.find(".annotation_ok").click(function() { return function(event) {annotation_ok_onclick.apply(that, [event])}; }());
 			$region.find(".annotation_cancel").click(annotation_cancel_onclick);
 				
 			$player_overlay.append($region);
-			$region_bg.css({width:annotation.rect.width + "px", height:annotation.rect.height + "px"});
-			$region.css({top:annotation.rect.top + "px", left:annotation.rect.left + "px"});
+			$region_bg.css({width:annotation.rect.width + "px", height:annotation.rect.height + "px", color:annotation.foreground,
+				backgroundColor: "rgba(" + annotation.background.r + "," + annotation.background.g + "," + annotation.background.b + "," + annotation.background.a + ")"});
+			$region.css({top:annotation.rect.top + "px", left:annotation.rect.left + "px", });
 			$(this).data("region",$region);
 
-			//TODO: remove the annotation marks on the timeline bar, also remove the annotation from the video clip
-
+			//remove the annotation marks on the timeline bar, also remove the annotation from the video clip so that a seek does not bring up another copy of this annotation
+			annotation.$group_mark.remove();
+			video_doc.videos[annotation.video_index].annotations = video_doc.videos[annotation.video_index].annotations.slice(0, annotation.index).concat(video_doc.videos[annotation.video_index].annotations.slice(annotation.index + 1));
 			return false;
 		};
 		$annotation.click(function() {
@@ -783,6 +801,7 @@ var onPlayerStateChange;
 				".annotation_ok:active{background-color:#ddd;}" +
 				".annotation_cancel:active{background-color:#333;}" +
 				".annotation { background: #444444; position:absolute;}" + 
+				".annotation_region{border-style:dashed; border-width:2px;cursor:move;}" +  
 				".annotation_region textarea{resize:none;}" +
 				".annotation_bar { width: 2px; background-color: gray; height: 70%; position: absolute; z-index: 4; top:15%}" + 
 				".annotation_bar_hover {width:5px;}" + 
@@ -793,7 +812,6 @@ var onPlayerStateChange;
 				".annotation_span {background-color:#aaaaaa; height:20%; position:absolute; top:40% ;z-index:1;}" +
 				".video_timeline_bar,.video_timeline_bar_edge{width: 2px; background-color: orange; height:100%; position: absolute; }" +
 				".video_timeline_span {background-color: orange; height:20%; position:absolute; top:40%}" +
-				".annotation_region{border-style:dashed; border-width:2px;background-color: rgba(80,250,250,0.4); cursor:move;}" +  
 				"p.annotation-editable{margin:0; width:100%;letter-spacing:1px;}" + 
 				"#timeline li.timeline-sortable-highlight {border: 2px solid #fcefa1;width: 116px; height: 90px; margin: 4px 6px;background: #fbf9ee; padding:0;}" +
 				"</style>");
