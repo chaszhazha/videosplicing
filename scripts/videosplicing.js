@@ -1,5 +1,3 @@
-//TODO: when an annotation's end point is selected, don't disselct on mouse up or mouse leave, but keep the selection to allow fine tunes on keyboard, and think of a way to disselect, $.blur() is a good place to start
-
 //TODO: use keyboard navigation to jump to the next mark on the timeline
 //TODO: UI to delete a video
 //TODO: when you rearrange the video icons and the current video ends up at then end but it is not the one being dragged, something weird will happen, fix this
@@ -166,15 +164,10 @@ var onPlayerStateChange;
 
 (function($){
 	var video_timer = null;
-	var annotation_bar_mousemove = function(event) {
-		//change the starting position of the annotation, change the bar's left, and redraw the corresponding annotation's span
-		var $bar = $(event.data);
+	
+	var annotation_bar_nudge = function (delta, $bar) {
 		var video_doc = this.data("video_doc");
 		var video_clip = video_doc.videos[$bar.data("indices").video_ind];
-		var dx = event.pageX - $bar.data("preX");
-		var delta = this.data("timeline_slider").slider("option","max") * dx / this.data("timeline_slider").width();
-		//console.log(delta);
-		$bar.data("preX", event.pageX);
 		var i = $bar.data("indices").annotation_ind;
 		video_clip.annotations[i].position += delta;
 		video_clip.annotations[i].position = Math.max(video_clip.annotations[i].position , video_clip.start);
@@ -196,14 +189,20 @@ var onPlayerStateChange;
 			check_annotations.call(this, this.data("player").getCurrentTime());
 		}
 	};
-	var annotation_end_mousemove = function(event) {
-		//change the duration and end position of the annotation
-		var $circle = $(event.data);
+
+	var annotation_bar_mousemove = function(event) {
+		//change the starting position of the annotation, change the bar's left, and redraw the corresponding annotation's span
+		var $bar = $(event.data);
+		var dx = event.pageX - $bar.data("preX");
+		var delta = this.data("timeline_slider").slider("option","max") * dx / this.data("timeline_slider").width();
+		//console.log(delta);
+		$bar.data("preX", event.pageX);
+		annotation_bar_nudge.apply(this,[delta, $bar]);
+	};
+
+	var annotation_end_nudge = function(delta, $circle) {
 		var video_doc = this.data("video_doc");
 		var video_clip = video_doc.videos[$circle.data("indices").video_ind];
-		var dx = event.pageX - $circle.data("preX");
-		var delta = this.data("timeline_slider").slider("option","max") * dx / this.data("timeline_slider").width();
-		$circle.data("preX", event.pageX);
 		var i = $circle.data("indices").annotation_ind;
 		video_clip.annotations[i].end += delta;
 		video_clip.annotations[i].end = Math.min(video_clip.annotations[i].end, video_clip.end);
@@ -222,6 +221,15 @@ var onPlayerStateChange;
 		}
 	};
 
+	var annotation_end_mousemove = function(event) {
+		//change the duration and end position of the annotation
+		var $circle = $(event.data);
+		var dx = event.pageX - $circle.data("preX");
+		var delta = this.data("timeline_slider").slider("option","max") * dx / this.data("timeline_slider").width();
+		$circle.data("preX", event.pageX);
+		annotation_end_nudge.apply(this, [delta, $circle]);
+	};
+
 	var render_annotation_marks = function(annotation, i, index) {
 		var $group = $("<span class='annotation_group'></span>");
 		var $bar = $("<span class='annotation_bar' tabindex='0'></span>");
@@ -230,7 +238,6 @@ var onPlayerStateChange;
 		$group.append($bar);
 		var timer = null;
 		var that = this;
-		var bar_remove_chosen = function() { $(this).removeClass("annotation_bar_chosen"); };
 
 		$bar.mousedown(function(event) {
 			var $this = $(this);
@@ -258,12 +265,10 @@ var onPlayerStateChange;
 			}
 			$(this).removeClass("annotation_bar_chosen");
 			$(this).unbind("mousemove");
-			$(this).unbind("mouseleave", bar_remove_chosen);
-			$(this).mouseleave(bar_remove_chosen);
 			that.unbind("mousemove", annotation_bar_mousemove);
 		});
 		$bar.blur(function() {
-
+			$bar.removeClass("annotation_bar_chosen");
 		});
 		$bar.mouseenter(function(event) {
 			//console.log(event);
@@ -276,7 +281,13 @@ var onPlayerStateChange;
 			}
 		});
 		$bar.keydown(function(event) {
-			//TODO: finetune the start position of the annotation
+			//finetune the start position of the annotation
+			if(event.keyCode == 37)	{
+				annotation_bar_nudge.apply(that,[-0.05, $bar]);
+			}
+			else if(event.keyCode == 39) {
+				annotation_bar_nudge.apply(that,[0.05, $bar]);
+			}
 		});
 
 		// These are the starting and ending position for the annotation on the timeline of the whole video doc
@@ -301,7 +312,6 @@ var onPlayerStateChange;
 		$annotation_end.mousedown(function(event) {
 			var $this = $(this);
 			timer = setTimeout(function() {
-				//TODO: make the span focusable and focus on this span
 				$this.focus();
 				$this.addClass("annotation_end_chosen");
 				$this.data("preX", event.pageX);
@@ -332,11 +342,17 @@ var onPlayerStateChange;
 			$(this).css("top", that.data("timeline_slider").height() / 2 - 5 + "px");
 		});
 		$annotation_end.keydown(function(event) {
-			console.log("Key down on annotation end");
-			//TODO: fine tune the annotation end position and duration
+			//fine tune the annotation end position and duration
+			if(event.keyCode == 37)	{
+				annotation_end_nudge.apply(that,[-0.05, $annotation_end]);
+			}
+			else if(event.keyCode == 39) {
+				annotation_end_nudge.apply(that,[0.05, $annotation_end]);
+			}
 		});
 		$annotation_end.blur(function() {
 			$(this).removeClass("annotation_end_chosen");
+			$(this).css("top", that.data("timeline_slider").height() / 2 - 4 + "px");
 		});
 		$annotation_end.mouseleave(function(event) {
 			if(timer)
@@ -756,6 +772,8 @@ var onPlayerStateChange;
 		opt = opt || {};
 		var default_opt = {player_height: 295, player_width:480};
 		var option = $.extend({}, default_opt, opt);
+		this.attr("tabindex","-1");
+		this.css("outline", "none");
 	    	this.html(
 				"<div id='vid_input'>" + 
 					"<span>Type video id here:</span><input type='text' id='vid'></input><button id='splicer_add_video_button'>Add video</button>" + 
@@ -816,11 +834,13 @@ var onPlayerStateChange;
 				".annotation_region{border-style:dashed; border-width:2px;cursor:move;}" +  
 				".annotation_region textarea{resize:none;}" +
 				".annotation_bar { width: 2px; background-color: gray; height: 70%; position: absolute; z-index: 4; top:15%}" + 
-				".annotation_bar:hover {width:5px;}" + 
-				".annotation_bar_chosen {width:5px; background-color:orangered;}" +
+				".annotation_bar:hover, .annotation_bar:focus {width:5px;}" + 
+				".annotation_bar:focus{background-color:orange;}" +
+				"#timeline span.annotation_bar_chosen {width:5px; background-color:orangered;}" +
 				".annotation_end {z-index: 5; width: 8px; height:8px; -webkit-border-radius: 4px; -moz-border-radius: 4px; border-radius: 4px; position:absolute; background-color: gray;}" +
 				".annotation_end:hover, .annotation_end:focus {width: 10px; height:10px; -webkit-border-radius: 5px; -moz-border-radius: 5px; border-radius: 5px;}" + 
-				".annotation_end_chosen {width: 10px; height:10px; -webkit-border-radius: 5px; -moz-border-radius: 5px; border-radius: 5px; background-color:orangered;}" +
+				".annotation_end:focus {background-color:orange;}" +
+				"#timeline span.annotation_end_chosen {width: 10px; height:10px; -webkit-border-radius: 5px; -moz-border-radius: 5px; border-radius: 5px; background-color:orangered;}" +
 				".annotation_span {background-color:#aaaaaa; height:20%; position:absolute; top:40% ;z-index:1;}" +
 				".video_timeline_bar,.video_timeline_bar_edge{width: 2px; background-color: orange; height:100%; position: absolute; }" +
 				".video_timeline_span {background-color: orange; height:20%; position:absolute; top:40%}" +
@@ -1173,9 +1193,10 @@ var onPlayerStateChange;
 		};
 		$play_button.click(play_button_onclick);
 
-		this.keypress(function(e) {
+		this.keydown(function(e) {
 			if(e.keyCode == 32) {
-				//TODO: space key pressed, pause or continue the video
+				//space key pressed, pause or continue the video
+				$play_button.trigger('click');
 			}
 			console.log("Key down on video splicer");
 		});
@@ -1262,7 +1283,7 @@ var onPlayerStateChange;
 				$region.find(".annotation_cancel").click(annotation_cancel_onclick);
 				
 				$player_overlay.append($region);
-				$region_bg.css({width:0, height:0});
+				$region_bg.css({width:0, height:0, backgroundColor: "rgba(80,250,250,0.4)"});
 				$region.css({top:first_click.y, left:first_click.x});
 				$(this).data("region",$region);
 			}
