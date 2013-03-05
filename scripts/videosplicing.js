@@ -567,11 +567,15 @@ var onPlayerStateChange;
 		// save the annotation
 		var annotation = new VideoAnnotation({content:content, duration: 10, position: this.data("player").getCurrentTime(), rect:{top: top, bottom: bottom, left:left, right: right},background:{r:r, g:g, b:b, a:a}, foreground:foreground});
 		video_doc.videos[video_doc.current].annotations.push(annotation);
+		annotation.video_index = video_doc.current;
+		annotation.index = video_doc.videos[video_doc.current].annotations.length - 1;
+
 		var $annotation = show_annotation.call(this, annotation);
 		video_doc.annotations_shown.push($annotation);
 		video_doc.videos[video_doc.current].annotations[video_doc.videos[video_doc.current].annotations.length - 1].displayed = true;
 		$(event.target).parent().remove();
 		render_annotation_marks.apply(this,[annotation, video_doc.videos[video_doc.current].annotations.length - 1, video_doc.current]);
+		//TODO: add the video index and annotation index to the annotation
 	};
 
 	var annotation_cancel_onclick = function() {
@@ -599,6 +603,9 @@ var onPlayerStateChange;
 			// Remove the annotation, then show the editable region
 			//console.log(annotation);
 			//console.log("Double clicked on an annotation");
+
+			//TODO: preserve the annotation's duration
+
 			var content = $annotation.text();
 			console.log(content);
 			$annotation.remove();
@@ -609,6 +616,7 @@ var onPlayerStateChange;
 			$region_bg.resizable({containment: "#video_player", resize: annotation_region_onresize});		
 			$region_bg.data("first_region_click",{x:0, y:0});
 			$region_bg.data("last_region_click",{x:0, y:0});
+			$region_bg.data("duration", annotation.duration);
 			$region_bg.bind("mousedown", this, region_mousedown);
 			$region_bg.bind("mouseup", this, region_mouseup);
 			$region_bg.text(content);
