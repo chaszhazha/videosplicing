@@ -6,6 +6,8 @@
 //TODO: edit annotation color and background color and opacity
 //TODO: prevent cross site scripting during annotation text input
 
+
+//TODO: full screen mode ?
 function Link(source_doc, target_doc) {
 	this.source_doc = source_doc;
 	this.target_doc = target_doc;
@@ -565,7 +567,8 @@ var onPlayerStateChange;
 		var foreground = $region_bg.css("color");	
 
 		// save the annotation
-		var annotation = new VideoAnnotation({content:content, duration: 10, position: this.data("player").getCurrentTime(), rect:{top: top, bottom: bottom, left:left, right: right},background:{r:r, g:g, b:b, a:a}, foreground:foreground});
+		var duration = $region_bg.data("duration") || 10;
+		var annotation = new VideoAnnotation({content:content, duration: duration, position: this.data("player").getCurrentTime(), rect:{top: top, bottom: bottom, left:left, right: right},background:{r:r, g:g, b:b, a:a}, foreground:foreground});
 		video_doc.videos[video_doc.current].annotations.push(annotation);
 		annotation.video_index = video_doc.current;
 		annotation.index = video_doc.videos[video_doc.current].annotations.length - 1;
@@ -575,7 +578,6 @@ var onPlayerStateChange;
 		video_doc.videos[video_doc.current].annotations[video_doc.videos[video_doc.current].annotations.length - 1].displayed = true;
 		$(event.target).parent().remove();
 		render_annotation_marks.apply(this,[annotation, video_doc.videos[video_doc.current].annotations.length - 1, video_doc.current]);
-		//TODO: add the video index and annotation index to the annotation
 	};
 
 	var annotation_cancel_onclick = function() {
