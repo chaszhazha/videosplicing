@@ -739,10 +739,10 @@ var onPlayerStateChange;
 	var annotation_region_onresize = function(event, ui) {
 		var x = ui.element.offset().left - this.data("player_overlay").offset().left;
 		var y = ui.element.offset().top - this.data("player_overlay").offset().top;
-		if(x + ui.size.width > option.player_width)
-			ui.element.css("width", option.player_width - x + "px" );
-		if(y + ui.size.height > option.player_height)
-			ui.element.css("height", option.player_height - y + "px");
+		if(x + ui.size.width > this.data("player_width"))
+			ui.element.css("width", this.data("player_width") - x + "px" );
+		if(y + ui.size.height > this.data("player_height"))
+			ui.element.css("height", this.data("player_height") - y + "px");
 		//console.log(ui);
 		//console.log(this);
 	};
@@ -873,6 +873,8 @@ var onPlayerStateChange;
     	    	var atts = { id: "video_player" };//The id for the inserted element by the API
     	    	swfobject.embedSWF("http://www.youtube.com/apiplayer?version=3&enablejsapi=1&playerapiid=player1", "YTplayerHolder", option.player_width, option.player_height, "9", null, null, params, atts);
 		this.data("video_doc" , new CompositeVideo());
+		this.data("player_width", option.player_width);
+		this.data("player_height", option.player_height);
 
 		//*************************************** Unbind the mouse move events here **********************************
 		this.mouseup( mouseup_unbind );
