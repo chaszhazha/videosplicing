@@ -835,11 +835,11 @@ var onPlayerStateChange;
 				".annotation { background: #444444; position:absolute;}" + 
 				".annotation_region{border-style:dashed; border-width:2px;cursor:move;}" +  
 				".annotation_region textarea{resize:none;}" +
-				".annotation_bar { width: 2px; background-color: gray; height: 70%; position: absolute; z-index: 4; top:15%}" + 
+				".annotation_bar { width: 2px; background-color: gray; height: 70%; position: absolute; z-index: 4; top:15%; outline:none;}" + 
 				".annotation_bar:hover, .annotation_bar:focus {width:5px;}" + 
 				".annotation_bar:focus{background-color:orange;}" +
 				"#timeline span.annotation_bar_chosen {width:5px; background-color:orangered;}" +
-				".annotation_end {z-index: 5; width: 8px; height:8px; -webkit-border-radius: 4px; -moz-border-radius: 4px; border-radius: 4px; position:absolute; background-color: gray;}" +
+				".annotation_end {outline:none; z-index: 5; width: 8px; height:8px; -webkit-border-radius: 4px; -moz-border-radius: 4px; border-radius: 4px; position:absolute; background-color: gray;}" +
 				".annotation_end:hover, .annotation_end:focus {width: 10px; height:10px; -webkit-border-radius: 5px; -moz-border-radius: 5px; border-radius: 5px;}" + 
 				".annotation_end:focus {background-color:orange;}" +
 				"#timeline span.annotation_end_chosen {width: 10px; height:10px; -webkit-border-radius: 5px; -moz-border-radius: 5px; border-radius: 5px; background-color:orangered;}" +
