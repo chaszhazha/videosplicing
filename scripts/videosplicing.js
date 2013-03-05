@@ -606,8 +606,6 @@ var onPlayerStateChange;
 			//console.log(annotation);
 			//console.log("Double clicked on an annotation");
 
-			//TODO: preserve the annotation's duration
-
 			var content = $annotation.text();
 			console.log(content);
 			$annotation.remove();
@@ -615,7 +613,9 @@ var onPlayerStateChange;
 			$player_overlay.append($region);
 		
 			var $region_bg = $region.find(".annotation_region");	
-			$region_bg.resizable({containment: "#video_player", resize: annotation_region_onresize});		
+
+			$region.resizable({containment: "#video_player", resize: annotation_region_onresize});
+		
 			$region_bg.data("first_region_click",{x:0, y:0});
 			$region_bg.data("last_region_click",{x:0, y:0});
 			$region_bg.data("duration", annotation.duration);
