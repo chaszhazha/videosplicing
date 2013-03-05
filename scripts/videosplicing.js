@@ -614,7 +614,7 @@ var onPlayerStateChange;
 		
 			var $region_bg = $region.find(".annotation_region");	
 
-			$region_bg.resizable({containment: "#video_player", resize: annotation_region_onresize});
+			$region_bg.resizable({containment: "#video_player", resize: function() { return function(event, ui) {annotation_region_onresize.apply(that, [event, ui])} } ()});
 		
 			$region_bg.data("first_region_click",{x:0, y:0});
 			$region_bg.data("last_region_click",{x:0, y:0});
@@ -737,8 +737,8 @@ var onPlayerStateChange;
 		$(this).unbind("mousemove.myEvents");
 	};
 	var annotation_region_onresize = function(event, ui) {
-		var x = ui.element.offset().left - $player_overlay.offset().left;
-		var y = ui.element.offset().top - $player_overlay.offset().top;
+		var x = ui.element.offset().left - this.data("player_overlay").offset().left;
+		var y = ui.element.offset().top - this.data("player_overlay").offset().top;
 		if(x + ui.size.width > option.player_width)
 			ui.element.css("width", option.player_width - x + "px" );
 		if(y + ui.size.height > option.player_height)
@@ -1323,7 +1323,7 @@ var onPlayerStateChange;
 			$player_overlay.unbind("mouseup", player_overlay_mouseup);
 			
 			if($(this).data("region")) {
-				$(this).data("region").find(".annotation_region").resizable({containment: "#video_player", resize: annotation_region_onresize});
+				$(this).data("region").find(".annotation_region").resizable({containment: "#video_player", resize: function() { return function(event, ui) {annotation_region_onresize.apply(that, [event, ui])} } ()});
 				//console.log($player_overlay);
 				$player_overlay.css("cursor","default");
 				$player_overlay.unbind("mousedown", player_overlay_mousedown);
