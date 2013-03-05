@@ -605,7 +605,8 @@ var onPlayerStateChange;
 			var $region = $("<div class='annotation_wrapper'><div class='annotation_region'></div><span class='annotation_ok'></span><span class='annotation_cancel'></span></div>");
 			$player_overlay.append($region);
 		
-			var $region_bg = $region.find(".annotation_region");				
+			var $region_bg = $region.find(".annotation_region");	
+			$region_bg.resizable({containment: "#video_player", resize: annotation_region_onresize});		
 			$region_bg.data("first_region_click",{x:0, y:0});
 			$region_bg.data("last_region_click",{x:0, y:0});
 			$region_bg.bind("mousedown", this, region_mousedown);
@@ -725,7 +726,16 @@ var onPlayerStateChange;
 		console.log("Plugin mouseup");
 		$(this).unbind("mousemove.myEvents");
 	};
-
+	var annotation_region_onresize = function(event, ui) {
+		var x = ui.element.offset().left - $player_overlay.offset().left;
+		var y = ui.element.offset().top - $player_overlay.offset().top;
+		if(x + ui.size.width > option.player_width)
+			ui.element.css("width", option.player_width - x + "px" );
+		if(y + ui.size.height > option.player_height)
+			ui.element.css("height", option.player_height - y + "px");
+		//console.log(ui);
+		//console.log(this);
+	};
 	var methods = {
 	    init: function(opt) {
 		var player;
@@ -1296,16 +1306,7 @@ var onPlayerStateChange;
 			first_click.x = event.pageX - $player_overlay.offset().left;
 			first_click.y = event.pageY - $player_overlay.offset().top;
 		};
-		var annotation_region_onresize = function(event, ui) {
-			var x = ui.element.offset().left - $player_overlay.offset().left;
-			var y = ui.element.offset().top - $player_overlay.offset().top;
-			if(x + ui.size.width > option.player_width)
-				ui.element.css("width", option.player_width - x + "px" );
-			if(y + ui.size.height > option.player_height)
-				ui.element.css("height", option.player_height - y + "px");
-			//console.log(ui);
-			//console.log(this);
-		};
+		
 		var player_overlay_mouseup = function(event) {
 			$player_overlay.unbind("mousemove", player_overlay_mousemove);
 			$player_overlay.unbind("mousemove", player_overlay_mousewait);
