@@ -112,7 +112,9 @@ CompositeVideo.prototype.Reposition = function(new_pos)
 	if(this.current != (i-1))
 	{
 		ret = true;
+		this.videos[this.current].isCurrent = false;
 		this.current = i - 1;
+		this.videos[this.current].isCurrent = true;
 		this.annotations = this.videos[this.current].annotations.slice(0);
 	}
 	this.position = new_pos;
