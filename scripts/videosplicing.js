@@ -1,5 +1,3 @@
-//TODO: write a player playback control wrapper function to hide the fact that we are using two kind of players now
-
 //TODO: when editing existing annotations, the start position will change to the current player time, but the more desirable way of doing it would be to preserve 
 //	the position, maybe disable the playback buttons and keyboard playback controls when there are editable regions on the player overlay
 
@@ -32,7 +30,7 @@ function VideoClip(param) {
 	this.duration = option.duration;//Duration of the clip of the video
 	this.end = this.start + this.duration; //The end position of the video clip in the single video
 	this.position = option.position;
-	this.video_length = option.video_length; //Duration of the youtube video 
+	this.video_length = option.video_length; //Duration of the youtube video a
 	this.isCurrent = false;
 	this.annotations = []; // Note: Only add new annotations to this array using the AddAnnotation function
 	this.index = -1; // The index of this video clip in the array for all the video clips in the Composite Video
@@ -825,9 +823,11 @@ var onPlayerStateChange;
 			}
 		};
 		onYouTubePlayerReady = function(playerId) {
-			player = document.getElementById("video_player");
+			player = document.getElementById("youtube_player");
 			that.data("player",player);
-			player.style.margin = "0 auto";
+			$(player).css({visibility:"hidden", position:"absolute"});
+			//console.log(player.style)
+			//player.style.margin = "0 auto";
 			player.addEventListener("onStateChange", "onPlayerStateChange");
 			//var tmp = $(player).data("videosplicerObj");
 			//console.log($(player).data("videosplicerObj"));
@@ -840,12 +840,14 @@ var onPlayerStateChange;
 		var option = $.extend({}, default_opt, opt);
 		this.attr("tabindex","-1");
 		this.css("outline", "none");
+		var qt_player_text = QT_GenerateOBJECTText('http://globalshakespeares.mit.edu/media/macbeth-jesusa-rodriguez.mov' , option.player_width, option.player_height, '', 'postdomevents', 'True', 'EnableJavaScript', 'True', 'emb#NAME', 'qt_player', 'obj#ID', 'qt_player', 'emb#ID', 'qt_playerEMBED', 'autoplay','false');
+		
 	    	this.html(
 				"<div id='vid_input'>" + 
 					"<span>Type video id here:</span><input type='text' id='vid'></input><button id='splicer_add_video_button'>Add video</button>" + 
 				"</div>" + 
                 		"<div id='video_container'>" +
-					"<div id='player_wrapper'><div id='YTplayerHolder'>You need Flash player 8+ and JavaScript enabled to view this video.</div><div id='player_overlay'> </div></div>" + 
+					"<div id='player_wrapper'><div id='YTplayerHolder'>You need Flash player 8+ and JavaScript enabled to view this video.</div>" + qt_player_text + "<div id='player_overlay'> </div></div>" + 
 					"<button id='play_button' class='playback-button'>" + 
 						"<svg xmlns='http://www.w3.org/2000/svg' version='1.1' id='play_svg'><polygon points='2,2 18,10 2,18'/></svg>" + 
 						"<svg xmlns='http://www.w3.org/2000/svg' version='1.1' id='pause_svg' style='display:none;'>" + 
@@ -863,6 +865,7 @@ var onPlayerStateChange;
                 		"<div id='timeline'><div id='splicer_timeline_slider'></div>" + 
 					"<div id='timeline_pane'> <div id='timeline_scroll_content'><ul></ul></div> <div class='slider-wrapper'><div id='timeline_scrollbar'></div> </div></div>" + 
 				"</div>");
+
 		$("#vid").css({width:"200px"});
 		$("head").append("<style>" + 
 				"#video_container{margin:0 auto;  width:" + option.player_width + "px;}" + 
@@ -915,20 +918,70 @@ var onPlayerStateChange;
 				"#timeline li.timeline-sortable-highlight {border: 2px solid #fcefa1;width: 116px; height: 90px; margin: 4px 6px;background: #fbf9ee; padding:0;}" +
 				"</style>");
 	    	var params = { allowScriptAccess: "always" };
-    	    	var atts = { id: "video_player" };//The id for the inserted element by the API
+    	    	var atts = { id: "youtube_player" };//The id for the inserted element by the API
     	    	swfobject.embedSWF("http://www.youtube.com/apiplayer?version=3&enablejsapi=1&playerapiid=player1", "YTplayerHolder", option.player_width, option.player_height, "9", null, null, params, atts);
+		this.player_type = "qt";		
 		this.data("video_doc" , new CompositeVideo());
 		this.data("player_width", option.player_width);
 		this.data("player_height", option.player_height);
 		this.data("video_timer", video_timer);
 		//*************************************** Unbind the mouse move events here **********************************
 		this.mouseup( mouseup_unbind );
+		
+		//Define some wrapper functions to access the different players
+		this.getPlayerTime = function() {
+			if(this.player_type == "youtube")
+			{
+				return player.getCurrentTime();
+			}
+			else if(this.player_type == "qt")
+			{
+				return document.qt_player.GetTime() / 1000.0;
+			}
+		};
+		
+		this.seekCurrentVideo = function(time) {
+			if(this.player_type == "youtube")
+			{
+				player.seekTo(time);
+			}
+			else if(this.player_type == "qt")
+			{
+				document.qt_player.SetTime(time * 1000.0);
+			}
+		};
+		
+		this.playVideo = function() {
+			if(this.player_type == "youtube")
+			{
+				player.playVideo();
+			}
+			else if(this.player_type == "qt")
+			{
+				document.qt_player.Play();
+			}
+		};
+
+		this.pauseVideo = function() {
+			if(this.player_type == "youtube")
+			{
+				player.pauseVideo();
+			}
+			else if(this.player_type == "qt")
+			{
+				document.qt_player.Stop();
+			}
+		};
 
 		var video_doc = this.data("video_doc");
 		var $player_wrapper = $("div#player_wrapper");
+		$player_wrapper.find("#YTplayerHolder").css("visibility","hidden");
+		//$player_wrapper.find("#youtube_player").css({visibility:"hidden" , position: "absolute"});
+		$player_wrapper.find("#qt_player").css({position: "absolute"});
 		var $player_overlay = $("div#player_overlay");
 		//$player_overlay.keydown(function(event) {return false;}); // Prevent the plugin getting the keydown event
 		$player_overlay.css({width:option.player_width, height:option.player_height});
+		$player_wrapper.css({width:option.player_width, height:option.player_height});
 		this.data("player_overlay", $player_overlay);
 		/* After removing an element, its associated data will also be removed
 		var $annotation = show_annotation();
@@ -1242,7 +1295,7 @@ var onPlayerStateChange;
 					clearInterval(video_timer);
 					video_timer = null;
 				}
-				player.pauseVideo();
+				that.pauseVideo();
 				$(this).find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
 				return;
 			}		
@@ -1255,7 +1308,7 @@ var onPlayerStateChange;
 				start = cur_video.start + video_doc.position - cur_video.position;
 			else	start = cur_video.start;
 			//player.seekTo(start);
-			player.playVideo();
+			that.playVideo();
 			$(this).find("#play_svg").css("display","none").end().find("#pause_svg").css("display","inline");
 		};
 		$play_button.click(play_button_onclick);
