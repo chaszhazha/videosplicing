@@ -1,13 +1,17 @@
+//TODO: write a player playback control wrapper function to hide the fact that we are using two kind of players now
+
+//TODO: when editing existing annotations, the start position will change to the current player time, but the more desirable way of doing it would be to preserve 
+//	the position, maybe disable the playback buttons and keyboard playback controls when there are editable regions on the player overlay
+
 //TODO: use keyboard navigation to jump to the next mark on the timeline
 //TODO: UI to delete a video
-//TODO: when you rearrange the video icons and the current video ends up at then end but it is not the one being dragged, something weird will happen, fix this
 
 //TODO: red position vertical bar for timeline pane view
 //TODO: edit annotation color and background color and opacity
 //TODO: prevent cross site scripting during annotation text input
 
-
 //TODO: full screen mode ?
+//TODO: editor's mode and player's mode
 function Link(source_doc, target_doc) {
 	this.source_doc = source_doc;
 	this.target_doc = target_doc;
@@ -22,6 +26,8 @@ function VideoClip(param) {
 	var option = $.extend({}, default_option, param);
 	
 	this.vid = option.vid;
+	this.source = option.source; // "youtube" or "streaming"
+
 	this.start = option.start; // The start position of the video clip in the single video
 	this.duration = option.duration;//Duration of the clip of the video
 	this.end = this.start + this.duration; //The end position of the video clip in the single video
@@ -77,6 +83,12 @@ CompositeVideo.prototype.AddVideo = function(arg)
 		console.error("Unacceptable argument: " + arg);
 		return this;
 	}
+}
+
+CompositeVideo.prototype.RemoveVideoAt = function(vid_index)
+{
+	//TODO: Remove the video at index vid_index
+	// calculate for the videos that come after the deleted video the start and end position for the videos and annotations
 }
 
 CompositeVideo.prototype.UpdateCurrentVideo = function(start, duration) 
@@ -540,6 +552,8 @@ var onPlayerStateChange;
 		//console.log(this);
 		//console.log(event);
 		var video_doc = this.data("video_doc");
+		this.unbind("keydown", splicer_keydown);
+		this.bind("keydown.myEvents", splicer_keydown);
 		var $region = this.data("player_overlay").find(".annotation_wrapper");
 		var $region_bg = $region.find(".annotation_region");
 		var textarea_annotation = $region_bg.find("textarea");
@@ -605,14 +619,23 @@ var onPlayerStateChange;
 			// Remove the annotation, then show the editable region
 			//console.log(annotation);
 			//console.log("Double clicked on an annotation");
-
+			var video_doc = that.data("video_doc");
+			if(video_doc.isPlaying)
+			{
+				that.data("player").pauseVideo();
+				var video_timer = that.data("video_timer");
+				clearInterval(video_timer);
+				video_timer = null;
+				video_doc.isPlaying = false;
+				that.data("play_button").find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
+			}
 			var content = $annotation.text();
 			console.log(content);
 			$annotation.remove();
 			var $region = $("<div class='annotation_wrapper'><div class='annotation_region'></div><span class='annotation_ok'></span><span class='annotation_cancel'></span></div>");
 			$player_overlay.append($region);
 		
-			var $region_bg = $region.find(".annotation_region");	
+			var $region_bg = $region.find(".annotation_region");		
 
 			$region_bg.resizable({containment: "#video_player", resize: function() { return function(event, ui) {annotation_region_onresize.apply(that, [event, ui])} } ()});
 		
@@ -621,7 +644,9 @@ var onPlayerStateChange;
 			$region_bg.data("duration", annotation.duration);
 			$region_bg.bind("mousedown", this, region_mousedown);
 			$region_bg.bind("mouseup", this, region_mouseup);
-			$region_bg.text(content);
+			var $p_content = $("<p class='annotation-editable'></p>");
+			$p_content.text(content);
+			$region_bg.append($p_content);
 				
 			$region.find(".annotation_ok").click(function() { return function(event) {annotation_ok_onclick.apply(that, [event])}; }());
 			$region.find(".annotation_cancel").click(annotation_cancel_onclick);
@@ -686,6 +711,7 @@ var onPlayerStateChange;
 		}
 	};
 	var region_doubleclick = function(event) {
+		event.data.unbind("keydown.myEvents");
 		var $this = $(this); 
 		$this.unbind("mousemove");
 		var $p_annotation = $this.find(".annotation-editable");
@@ -698,13 +724,16 @@ var onPlayerStateChange;
 		$textarea.val(function(i, val) {return text;});
 		$textarea.css({maxWidth:"99%", maxHeight:"99%", minWidth:"99%", minHeight:"99%", padding:"0", margin:"0px"});
 		$textarea.focus();
-		$textarea.blur(function() {
+		var that = event.data;
+		$textarea.blur(function(event) {
 			// remove the textarea and add the text to the containing div
 			var text = $textarea.val();
 			$textarea.remove();
 			var $content = $("<p class='annotation-editable'></p>");
 			$content.text(function(i, value) {return text});
 			$this.append($content);
+			that.unbind("keydown.myEvents");
+			that.bind("keydown.myEvents",splicer_keydown);
 		});
 	};
 	var region_mousedown = function(event) {
@@ -715,7 +744,7 @@ var onPlayerStateChange;
 		$this.data("first_region_click").y = event.pageY;
 		$this.bind("mousemove", event.data, region_mousewait);
 		
-		$this.mousedown(region_doubleclick);
+		$this.bind("mousedown", event.data, region_doubleclick);
 		setTimeout(function(){$this.unbind("mousedown", region_doubleclick)}, 600);
 		
 		return false;
@@ -727,9 +756,15 @@ var onPlayerStateChange;
 		$(this).unbind("mousemove", region_mousewait);
 		event.data.unbind("mousemove.myEvents");
 
-		//Somehow the mouseup event on the plugin will no longer get fired after you drag the annotation region, this is a hack to fix that.
+		//Somehow all the events on the splicer like mouseup or keydown will no longer get fired after you drag the annotation region, this is a hack to fix that.
 		event.data.unbind("mouseup",mouseup_unbind);
 		event.data.mouseup(mouseup_unbind);
+		
+		if($(this).find("textarea").length == 0) {
+			//Only rebind when there is no editable textarea
+			event.data.unbind("keydown.myEvents");
+			event.data.bind("keydown.myEvents",splicer_keydown);
+		}
 	};
 
 	var mouseup_unbind = function() {
@@ -745,6 +780,15 @@ var onPlayerStateChange;
 			ui.element.css("height", this.data("player_height") - y + "px");
 		//console.log(ui);
 		//console.log(this);
+	};
+
+	var splicer_keydown = function(e) {
+		if(e.keyCode == 32) {
+			event.preventDefault();
+			//space key pressed, pause or continue the video
+			$(this).data("play_button").trigger('click');
+		}
+		console.log("Key down on video splicer");
 	};
 	var methods = {
 	    init: function(opt) {
@@ -854,6 +898,7 @@ var onPlayerStateChange;
 				".annotation_cancel:active{background-color:#333;}" +
 				".annotation { background: #444444; position:absolute;}" + 
 				".annotation_region{border-style:dashed; border-width:2px;cursor:move;}" +  
+				".annotation, .annotation_region {white-space: pre-wrap; overflow:hidden;}" +
 				".annotation_region textarea{resize:none;}" +
 				".annotation_bar { width: 2px; background-color: gray; height: 70%; position: absolute; z-index: 4; top:15%; outline:none;}" + 
 				".annotation_bar:hover, .annotation_bar:focus {width:5px;}" + 
@@ -875,7 +920,7 @@ var onPlayerStateChange;
 		this.data("video_doc" , new CompositeVideo());
 		this.data("player_width", option.player_width);
 		this.data("player_height", option.player_height);
-
+		this.data("video_timer", video_timer);
 		//*************************************** Unbind the mouse move events here **********************************
 		this.mouseup( mouseup_unbind );
 
@@ -932,6 +977,7 @@ var onPlayerStateChange;
 							$range_selector.slider("option",{max:dur, values:[0, dur]});
 						}
 						$timeline_slider.find(".annotation_bar").remove();
+						$timeline_slider.find(".annotation_end").remove();
 						$timeline_slider.find(".video_timeline_bar").remove();
 						$timeline_slider.find(".annotation_span").remove();
 
@@ -1060,9 +1106,9 @@ var onPlayerStateChange;
 		};
 		var range_selector_slidestart = function(event, ui) {
 			var video_doc = that.data("video_doc");
+			player.pauseVideo();
 			if(video_doc.isPlaying)
 			{
-				player.pauseVideo();
 				clearInterval(video_timer);
 				video_timer = null;
 				video_doc.isPlaying = false;
@@ -1086,7 +1132,6 @@ var onPlayerStateChange;
 			var video_doc = that.data("video_doc");
 			//Since we are seeking to a different part of the video, need to check the annotations, some need to show up and some need to disapper
 	
-			
 		};
 		$range_selector.slider({range: true, slide: slider_onslide, step: 0.05, start: range_selector_slidestart, stop: range_selector_slidestop});
 		$range_selector.slider("disable");
@@ -1187,8 +1232,6 @@ var onPlayerStateChange;
 
 		var play_button_onclick = function() {
 			var video_doc = that.data("video_doc");
-			//TODO: 1. If we are in the player's mode, then either not show the range selector or disable it
-			//If it is in the editor's mode, then update the max value and reposition the two handles
 			if(video_doc.videos.length == 0)
 				return;	
 			if(video_doc.isPlaying)
@@ -1217,14 +1260,8 @@ var onPlayerStateChange;
 		};
 		$play_button.click(play_button_onclick);
 
-		this.keydown(function(e) {
-			if(e.keyCode == 32) {
-				//space key pressed, pause or continue the video
-				$play_button.trigger('click');
-			}
-			console.log("Key down on video splicer");
-		});
-		
+		this.bind("keydown.myEvents",splicer_keydown);
+	
 	    	var timeline_sortable_onchange = function(event, ui) {
 			//console.log("sortable change");
 	    	}
@@ -1297,7 +1334,8 @@ var onPlayerStateChange;
 				$player_overlay.mousemove(player_overlay_mousemove);
 
 				var $region = $("<div class='annotation_wrapper'><div class='annotation_region'></div><span class='annotation_ok'></span><span class='annotation_cancel'></span></div>");
-				var $region_bg = $region.find(".annotation_region");				
+				var $region_bg = $region.find(".annotation_region");
+				
 				$region_bg.data("first_region_click",{x:0, y:0});
 				$region_bg.data("last_region_click",{x:0, y:0});
 				$region_bg.bind("mousedown", that, region_mousedown);
