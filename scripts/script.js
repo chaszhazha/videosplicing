@@ -10,6 +10,7 @@ $(document).ready(function(){
 	videos[1].AddAnnotation(new VideoAnnotation({content:"This is test annotation 2 for video 2", position: 27, duration:7, rect:{top:20, bottom:170, left:10, right:170}}));
 	videos[2].AddAnnotation(new VideoAnnotation({content:"This is test annotation 3 for video 3", position: 120, duration:7, rect:{top:30, bottom:180, left:10, right:170}}));
 	spliced_videos.AddVideo(videos);
-	console.log(spliced_videos);
-	$splicer.videosplicer( "onPlayerReady", function() { $splicer.videosplicer("loadVideos",spliced_videos); } );
+	//console.log(spliced_videos);
+	//$splicer.videosplicer( "onPlayerReady", function() {  } );
+	$splicer.videosplicer("loadVideos",spliced_videos);
 });

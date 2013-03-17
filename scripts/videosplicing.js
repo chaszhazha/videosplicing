@@ -25,6 +25,7 @@ function VideoClip(param) {
 	
 	this.vid = option.vid;
 	this.source = option.source; // "youtube" or "streaming"
+	this.thumbnailurl = option.thumbnailurl; // This url is used when the video is not from youtube.
 
 	this.start = option.start; // The start position of the video clip in the single video
 	this.duration = option.duration;//Duration of the clip of the video
@@ -831,8 +832,12 @@ var onPlayerStateChange;
 			player.addEventListener("onStateChange", "onPlayerStateChange");
 			//var tmp = $(player).data("videosplicerObj");
 			//console.log($(player).data("videosplicerObj"));
+			console.log("Player ready called");
 			for(var i = 0; i < that.playerReadyFuncs.length; i++)
 				that.playerReadyFuncs[i]();
+
+			//TODO: Since we are switching between youtube and quicktime players, this function is going to get called whenever we switched from quicktime player to ytplayer.
+			// Should move all the stuff that has to do with the player in loadVideos function to here.
 		};
 
 		opt = opt || {};
@@ -1497,6 +1502,7 @@ var onPlayerStateChange;
 
 	    },
 	    loadVideos: function(videoDocObj) {
+		console.log("loadVideos called");
 		if(! (videoDocObj instanceof CompositeVideo)) return this;
 		var that = this;
 		var video_doc = this.data("video_doc");
@@ -1562,6 +1568,7 @@ var onPlayerStateChange;
 								that.data("range_selector").slider("option", "max", duration);
 							}
 							var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
+							console.log(index + ": " + vid_thumbnail_url);
 							vid_icon_img[index].src = vid_thumbnail_url;
 							$(vid_icon_img[index]).data("videoclip",videoDocObj.videos[index]);
 							$(vid_icon_img[index]).data("video_doc",video_doc);
