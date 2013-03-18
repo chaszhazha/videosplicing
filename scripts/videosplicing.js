@@ -26,6 +26,7 @@ function VideoClip(param) {
 	this.vid = option.vid;
 	this.source = option.source; // "youtube" or "streaming"
 	this.thumbnailurl = option.thumbnailurl; // This url is used when the video is not from youtube.
+	this.video_url = option.video_url; //This url is for non youtube videos
 
 	this.start = option.start; // The start position of the video clip in the single video
 	this.duration = option.duration;//Duration of the clip of the video
@@ -419,7 +420,7 @@ var onPlayerStateChange;
 			$li.data("player").cueVideoById( {videoId:video_doc.videos[video_doc.current].vid, startSeconds:video_doc.videos[video_doc.current].start});
 			$li.data("player").pauseVideo();check_annotations
 		}
-		$li.data("player").seekTo(video_doc.videos[video_doc.current].start);
+		this.seekCurrentVideo(video_doc.videos[video_doc.current].start);
 		if(video_doc.isPlaying)
 			$li.data("player").playVideo();
 		else
@@ -437,6 +438,7 @@ var onPlayerStateChange;
 	    };
 
 	    var switch_to_next_video = function(video_doc) {
+		
 		for(var i = 0; i < video_doc.annotations_shown.length; i++) {
 			video_doc.annotations_shown[i].remove();
 		}
@@ -444,23 +446,46 @@ var onPlayerStateChange;
 		var $video_icons = this.find(".video-icon");
 		$($video_icons[video_doc.current]).removeClass("current-video");
 		video_doc.annotations_shown = [];
-		if(video_doc.current == video_doc.videos.length -1)
+
+		video_doc.videos[video_doc.current].isCurrent = false;
+		video_doc.current = (video_doc.current + 1) % video_doc.videos.length;
+		video_doc.videos[video_doc.current].isCurrent = true;	
+
+		if(this.player_type == "youtube" && video_doc.videos[video_doc.current].source == "qt")
 		{
-			// The last video finished playing, stop the timer and reset the current video to the first, also the handlers
-			video_doc.videos[video_doc.current].isCurrent = false;
-			video_doc.current = 0;
-			video_doc.videos[0].isCurrent = true;
+			this.player_type = "qt";
+			$(document.qt_player).css("visibility", "visible");
+			$(player).css("visibility", "hidden");
+		}
+		else if(this.player_type == "qt" && video_doc.videos[video_doc.current].source == "youtube")
+		{
+			this.player_type = "youtube"
+			$(document.qt_player).css("visibility", "hidden");
+			$(player).css("visibility", "visible");
+		}
+	
+		if(video_doc.current == 0)
+		{
+			// All videos finished playing, stop the timer and reset the current video to the first, also the handlers
 		    	video_doc.position = 0.0;
 		    	video_doc.isPlaying = false;
 		    	clearInterval(video_timer);
 		    	video_timer = null;
 			// load the first video if there are more than 1 videos, also reset the handles
 			if(video_doc.videos.length != 1)
-				player.loadVideoById( {videoId:video_doc.videos[0].vid,
-					startSeconds:video_doc.videos[0].start} );
+			{
+				if(this.player_type == "youtube")
+					player.loadVideoById( {videoId:video_doc.videos[0].vid,
+						startSeconds:video_doc.videos[0].start} );
+				else
+				{
+					document.qt_player.SetURL(video_doc.videos[0].video_url);
+					this.seekCurrentVideo(video_doc.videos[0].start);
+				}
+			}
 			else
-				player.seekTo(video_doc.videos[0].start);
-			player.pauseVideo();
+				this.seekCurrentVideo(video_doc.videos[0].start);
+			this.pauseVideo();
 			this.data("range_selector").slider("option","values",[video_doc.videos[0].start, video_doc.videos[0].start + video_doc.videos[0].duration]);
 			this.data("range_selector").slider("option","max",video_doc.videos[0].video_length);
 			this.data("timeline_slider").slider("option","value",0);
@@ -469,18 +494,23 @@ var onPlayerStateChange;
 		else {
 			console.log("Switch to the next video");
 			//Swith to the next video, and change to range slider handles
-			video_doc.videos[video_doc.current].isCurrent = false;
-			video_doc.current++;
-			video_doc.videos[video_doc.current].isCurrent = true;
+			
 			var left = video_doc.videos[video_doc.current].start; 
 	    		var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
 	    		//console.log(left + "<==>" + right);
 	    		this.data("range_selector").slider("option","max",video_doc.videos[video_doc.current].video_length);
 	    		this.data("range_selector").slider("option","values",[left, right]);
 			var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
-			player.loadVideoById( {videoId:video_doc.videos[video_doc.current].vid,
+			if(this.player_type == "youtube")
+				player.loadVideoById( {videoId:video_doc.videos[video_doc.current].vid,
 					startSeconds:start_at});
+			else
+			{
+				document.qt_player.SetURL(video_doc.videos[video_doc.current].video_url);
+				this.seekCurrentVideo(video_doc.videos[video_doc.current].start);
+			}
 		}
+
 		var $vid_span = this.find(".video_timeline_span");
 		$vid_span.css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
 
@@ -525,7 +555,7 @@ var onPlayerStateChange;
 	};
 
 	var tick = function(switchvideo) {
-		if(switchvideo == null)
+		if(!switchvideo)
 			switchvideo = true;
 		var video_doc = this.data("video_doc");
 		var player = this.data("player");
@@ -835,9 +865,14 @@ var onPlayerStateChange;
 			console.log("Player ready called");
 			for(var i = 0; i < that.playerReadyFuncs.length; i++)
 				that.playerReadyFuncs[i]();
+			var video_doc = that.data("video_doc");
 
-			//TODO: Since we are switching between youtube and quicktime players, this function is going to get called whenever we switched from quicktime player to ytplayer.
+			//Since we are switching between youtube and quicktime players, this function is going to get called whenever we switched from quicktime player to ytplayer.
 			// Should move all the stuff that has to do with the player in loadVideos function to here.
+			player.loadVideoById({videoId:video_doc.videos[video_doc.current].vid,
+						startSeconds:video_doc.videos[video_doc.current].start});
+			player.pauseVideo();
+			$(that.find("#timeline_scroll_content .video-icon img")).data("player",player);
 		};
 
 		opt = opt || {};
@@ -925,7 +960,7 @@ var onPlayerStateChange;
 	    	var params = { allowScriptAccess: "always" };
     	    	var atts = { id: "youtube_player" };//The id for the inserted element by the API
     	    	swfobject.embedSWF("http://www.youtube.com/apiplayer?version=3&enablejsapi=1&playerapiid=player1", "YTplayerHolder", option.player_width, option.player_height, "9", null, null, params, atts);
-		this.player_type = "qt";		
+		this.player_type = "qt"; // "qt" or "youtube"		
 		this.data("video_doc" , new CompositeVideo());
 		this.data("player_width", option.player_width);
 		this.data("player_height", option.player_height);
@@ -1031,7 +1066,7 @@ var onPlayerStateChange;
 						{
 							video_doc.videos[0].isCurrent = true;
 							player.loadVideoById({videoId:videoid, startSeconds:0});
-							player.pauseVideo();
+							that.pauseVideo();
 							$range_selector.slider("option",{max:dur, values:[0, dur]});
 						}
 						$timeline_slider.find(".annotation_bar").remove();
@@ -1073,8 +1108,13 @@ var onPlayerStateChange;
 				$($video_icons[video_doc.current]).addClass("current-video");
 				$($video_icons[old_curr]).removeClass("current-video");
 				var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
-				player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid,
-						startSeconds:start_at});				
+				if(that.player_type == "youtube")
+					player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid,
+						startSeconds:start_at});
+				else {
+					document.qt_player.SetURL(video_doc.videos[video_doc.current].video_url);
+					that.seekCurrentVideo(start_at);
+				}				
 				var duration = video_doc.videos[video_doc.current].video_length;
 			    	var left = video_doc.videos[video_doc.current].start; 
 			    	var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
@@ -1082,8 +1122,8 @@ var onPlayerStateChange;
 				$range_selector.slider("option",{max: duration, values: [left,right]});
 			}
 			var video_pos = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
-			player.seekTo(video_pos);
-			player.pauseVideo();
+			that.seekCurrentVideo(video_pos);
+			that.pauseVideo();
 			// annotations, the Reposition function should take care of the annotations array of the video_doc
 			for(var i = 0; i < video_doc.annotations_shown.length; i++)
 				video_doc.annotations_shown[i].remove();
@@ -1106,7 +1146,7 @@ var onPlayerStateChange;
 			if(video_timer) {
 				clearInterval(video_timer);
 				video_timer = null;
-				player.pauseVideo();
+				that.pauseVideo();
 				//that.data("video_doc").isPlaying = false;
 			}
 		};
@@ -1115,14 +1155,14 @@ var onPlayerStateChange;
 			timeline_slider_onchanged();
 			if(that.data("video_doc").isPlaying) {
 				//console.log("is playing");
-				player.playVideo();
+				that.playVideo();
 				video_timer = setInterval( (function(videosplicer){ return function() {tick.call(videosplicer)};}) (that) , 100);
 			}
 			else
-				player.pauseVideo();
+				that.pauseVideo();
 		}; 
 		var slider_onslide = function(event, ui) {
-			player.seekTo(ui.value);
+			that.seekCurrentVideo(ui.value);
 			that.data("video_doc").UpdateCurrentVideo(ui.values[0], ui.values[1] - ui.values[0]);
 			var video_doc = that.data("video_doc");
 			//console.log(ui.values[0]);
@@ -1164,7 +1204,7 @@ var onPlayerStateChange;
 		};
 		var range_selector_slidestart = function(event, ui) {
 			var video_doc = that.data("video_doc");
-			player.pauseVideo();
+			that.pauseVideo();
 			if(video_doc.isPlaying)
 			{
 				clearInterval(video_timer);
@@ -1172,7 +1212,7 @@ var onPlayerStateChange;
 				video_doc.isPlaying = false;
 				that.data("play_button").find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
 			}
-			player.seekTo(ui.value);
+			that.seekCurrentVideo(ui.value);
 			//that.data("video_doc").UpdateCurrentVideo(ui.values[0], ui.values[1] - ui.values[0]);
 			var video_doc = that.data("video_doc");
 			//console.log(ui.values[0]);
@@ -1261,12 +1301,24 @@ var onPlayerStateChange;
 			//place timeline handle to the left most position, place the range selector handles to the first video's position
 			if(video_doc.current != 0)
 			{
-				player.loadVideoById({videoId:video_doc.videos[0].vid, startSeconds:video_doc.videos[0].start});
+				if(video_doc.videos[0].source == "youtube") {
+					$(player).css("visibility", "visible");
+					$(document.qt_player).css("visibility", "hidden");
+
+					//TODO: this might be a probalem: player is not ready yet
+					player.loadVideoById({videoId:video_doc.videos[0].vid, startSeconds:video_doc.videos[0].start});
+				}
+				else if(video_doc.videos[0].source == "qt") {
+					$(player).css("visibility", "hidden");
+					$(document.qt_player).css("visibility", "visible");
+					document.qt_player.SetURL(video_doc.videos[0].video_url);
+					that.seekCurrentVideo(video_doc.videos[0].start);
+				}
 				$($timeline_scroll_pane.find(".video-icon")[video_doc.current]).removeClass("current-video");
 				$($timeline_scroll_pane.find(".video-icon")[0]).addClass("current-video");
 			}
-			else	player.seekTo(video_doc.videos[0].start);
-			player.pauseVideo();
+			else	that.seekCurrentVideo(video_doc.videos[0].start);
+			that.pauseVideo();
 			video_doc.current = 0;
 			
 			var $vid_span = that.find(".video_timeline_span");
@@ -1312,7 +1364,7 @@ var onPlayerStateChange;
 			if(video_doc.position >= cur_video.position && video_doc.position < cur_video.position + cur_video.duration)
 				start = cur_video.start + video_doc.position - cur_video.position;
 			else	start = cur_video.start;
-			//player.seekTo(start);
+			//that.seekCurrentVideo(start);
 			that.playVideo();
 			$(this).find("#play_svg").css("display","none").end().find("#pause_svg").css("display","inline");
 		};
@@ -1333,7 +1385,7 @@ var onPlayerStateChange;
 			video_doc.videos[0].position = 0;
 			var position, position_counter = video_doc.videos[0].duration; // The playback position of the composite video
 			if($($(event.target).find("img")[0]).data("videoclip").isCurrent) {
-				position = player.getCurrentTime() - $($(event.target).find("img")[0]).data("videoclip").start;
+				position = that.getPlayerTime() - $($(event.target).find("img")[0]).data("videoclip").start;
 				video_doc.current = 0;
 			}
 			
@@ -1343,7 +1395,7 @@ var onPlayerStateChange;
 				video_doc.videos[i].position = video_doc.videos[i - 1].position + video_doc.videos[i - 1].duration;
 				if(video_doc.videos[i].isCurrent) {
 					video_doc.current = i;
-					position = position_counter + player.getCurrentTime() - video_doc.videos[i].start;
+					position = position_counter + that.getPlayerTime() - video_doc.videos[i].start;
 				}
 				position_counter += video_doc.videos[i].duration;
 			}
@@ -1438,7 +1490,7 @@ var onPlayerStateChange;
 			$player_overlay.mouseup(player_overlay_mouseup);
 			$player_overlay.css("cursor", "crosshair");
 			$annotate_button.attr("disabled","true");
-			player.pauseVideo();
+			that.pauseVideo();
 		};
 		$annotate_button.click(annotate_button_onclick);
 		
@@ -1514,9 +1566,7 @@ var onPlayerStateChange;
 		if(videoDocObj.videos.length > 0) {
 			this.data("range_selector").slider("option","max", videoDocObj.videos[0].video_length);
 			this.data("range_selector").slider("option", "values",[videoDocObj.videos[0].start + 0, videoDocObj.videos[0].start + videoDocObj.videos[0].duration]);
-			this.data("player").loadVideoById({videoId:videoDocObj.videos[0].vid,
-						startSeconds:videoDocObj.videos[0].start});
-			this.data("player").pauseVideo();
+			
 			var $timeline_scroll_content = this.find("div#timeline_pane div#timeline_scroll_content ul");
 			for(var i = 0; i < videoDocObj.videos.length; i++) {
 				$timeline_scroll_content.append("<li><div class='video-icon'><img src='' alt='Video " + (i + 1) +"'/></div></li>");
@@ -1572,7 +1622,6 @@ var onPlayerStateChange;
 							vid_icon_img[index].src = vid_thumbnail_url;
 							$(vid_icon_img[index]).data("videoclip",videoDocObj.videos[index]);
 							$(vid_icon_img[index]).data("video_doc",video_doc);
-							$(vid_icon_img[index]).data("player",that.data("player"));
 							$(vid_icon_img[index]).click((function(){return function(event) {video_icon_clicked.call(that,event)} })());
 						}
 						else {
