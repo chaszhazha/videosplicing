@@ -202,7 +202,7 @@ var onPlayerStateChange;
 		$bar.parent().find(".annotation_end").css("left", left_end);
 		if($bar.data("indices").video_ind == video_doc.current)
 		{
-			check_annotations.call(this, this.data("player").getCurrentTime());
+			check_annotations.call(this, this.getPlayerTime());
 		}
 	};
 
@@ -233,7 +233,7 @@ var onPlayerStateChange;
 		$circle.parent().find(".annotation_span").css("width", width);
 		if($circle.data("indices").video_ind == video_doc.current)
 		{
-			check_annotations.call(this, this.data("player").getCurrentTime());
+			check_annotations.call(this, this.getPlayerTime());
 		}
 	};
 
@@ -404,6 +404,7 @@ var onPlayerStateChange;
 	    };
 
 	    var video_icon_clicked = function(event) {
+		//TODO: check the type of the video
 		// The this keyword is the video splicer jquery object
 		var $li = $(event.delegateTarget);
 		var video_doc = $li.data("video_doc");
@@ -413,19 +414,38 @@ var onPlayerStateChange;
 
 		if(video_doc.Reposition(videoclip.position))
 		{
-			//swith video
 			var video_icons = this.find(".video-icon");
 			$(video_icons[old_curr]).removeClass("current-video");
 			$(video_icons[video_doc.current]).addClass("current-video");
-			$li.data("player").cueVideoById( {videoId:video_doc.videos[video_doc.current].vid, startSeconds:video_doc.videos[video_doc.current].start});
-			$li.data("player").pauseVideo();check_annotations
+			//swith video
+			if(video_doc.videos[video_doc.current].source == "youtube") {
+				this.player_type = "youtube";
+				$(document.youtube_player).css("visibility", "visible");
+				$(document.qt_player).css("visibility", "hidden");
+				document.youtube_player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid, startSeconds:video_doc.videos[video_doc.current].start});
+				document.youtube_player.pauseVideo();
+			}
+			else if(video_doc.videos[video_doc.current].source == "qt") {
+				this.player_type = "qt";
+				$(document.qt_player).css("visibility", "visible");
+				$(document.youtube_player).css("visibility", "hidden");
+				if(!document.qt_player || !document.qt_player.SetURL) {
+					$(document.qt_player).remove();
+					var qt_player_text = QT_GenerateOBJECTText(video_doc.videos[video_doc.current].video_url , this.data("player_width"), this.data("player_height"), '', 'postdomevents', 'True', 'EnableJavaScript', 'True', 'emb#NAME', 'qt_player', 'obj#ID', 'qt_player', 'emb#ID', 'qt_playerEMBED', 'autoplay','false');
+					$(document.youtube_player).after(qt_player_text);
+					//TODO: add event listener for when the player loads to seek to the start position
+				}
+				else {
+					document.qt_player.SetURL(video_doc.videos[video_doc.current].video_url);
+					//TODO: add event listener for when the video loads to seek to the start position
+				}
+			}
 		}
-		this.seekCurrentVideo(video_doc.videos[video_doc.current].start);
 		if(video_doc.isPlaying)
-			$li.data("player").playVideo();
+			document.youtube_player.playVideo();
 		else
 		{
-			$li.data("player").pauseVideo();
+			document.youtube_player.pauseVideo();
 		}
 		tick.call(this);
 		this.find(".video_timeline_span").remove();
@@ -442,7 +462,7 @@ var onPlayerStateChange;
 		for(var i = 0; i < video_doc.annotations_shown.length; i++) {
 			video_doc.annotations_shown[i].remove();
 		}
-		var player = this.data("player");
+		var player = document.youtube_player;
 		var $video_icons = this.find(".video-icon");
 		$($video_icons[video_doc.current]).removeClass("current-video");
 		video_doc.annotations_shown = [];
@@ -453,6 +473,7 @@ var onPlayerStateChange;
 
 		if(this.player_type == "youtube" && video_doc.videos[video_doc.current].source == "qt")
 		{
+			//TODO: if qt player is not present then add the player
 			this.player_type = "qt";
 			$(document.qt_player).css("visibility", "visible");
 			$(player).css("visibility", "hidden");
@@ -558,8 +579,7 @@ var onPlayerStateChange;
 		if(!switchvideo)
 			switchvideo = true;
 		var video_doc = this.data("video_doc");
-		var player = this.data("player");
-		var player_time = player.getCurrentTime();
+		var player_time = this.getPlayerTime();
 		//console.log(player_time);
 
 		check_annotations.call(this, player_time);
@@ -611,7 +631,8 @@ var onPlayerStateChange;
 
 		// save the annotation
 		var duration = $region_bg.data("duration") || 10;
-		var annotation = new VideoAnnotation({content:content, duration: duration, position: this.data("player").getCurrentTime(), rect:{top: top, bottom: bottom, left:left, right: right},background:{r:r, g:g, b:b, a:a}, foreground:foreground});
+
+		var annotation = new VideoAnnotation({content:content, duration: duration, position: that.getPlayerTime(), rect:{top: top, bottom: bottom, left:left, right: right},background:{r:r, g:g, b:b, a:a}, foreground:foreground});
 		video_doc.videos[video_doc.current].annotations.push(annotation);
 		annotation.video_index = video_doc.current;
 		annotation.index = video_doc.videos[video_doc.current].annotations.length - 1;
@@ -651,7 +672,7 @@ var onPlayerStateChange;
 			var video_doc = that.data("video_doc");
 			if(video_doc.isPlaying)
 			{
-				that.data("player").pauseVideo();
+				that.pauseVideo();
 				var video_timer = that.data("video_timer");
 				clearInterval(video_timer);
 				video_timer = null;
@@ -856,7 +877,6 @@ var onPlayerStateChange;
 		onYouTubePlayerReady = function(playerId) {
 			player = document.getElementById("youtube_player");
 			that.data("player",player);
-			$(player).css({visibility:"hidden", position:"absolute"});
 			//console.log(player.style)
 			//player.style.margin = "0 auto";
 			player.addEventListener("onStateChange", "onPlayerStateChange");
@@ -869,10 +889,13 @@ var onPlayerStateChange;
 
 			//Since we are switching between youtube and quicktime players, this function is going to get called whenever we switched from quicktime player to ytplayer.
 			// Should move all the stuff that has to do with the player in loadVideos function to here.
-			player.loadVideoById({videoId:video_doc.videos[video_doc.current].vid,
+			if(video_doc.videos[video_doc.current].source == "youtube") {
+				player.loadVideoById({videoId:video_doc.videos[video_doc.current].vid,
 						startSeconds:video_doc.videos[video_doc.current].start});
-			player.pauseVideo();
+				player.pauseVideo();
+			}
 			$(that.find("#timeline_scroll_content .video-icon img")).data("player",player);
+			
 		};
 
 		opt = opt || {};
@@ -880,14 +903,13 @@ var onPlayerStateChange;
 		var option = $.extend({}, default_opt, opt);
 		this.attr("tabindex","-1");
 		this.css("outline", "none");
-		var qt_player_text = QT_GenerateOBJECTText('http://globalshakespeares.mit.edu/media/macbeth-jesusa-rodriguez.mov' , option.player_width, option.player_height, '', 'postdomevents', 'True', 'EnableJavaScript', 'True', 'emb#NAME', 'qt_player', 'obj#ID', 'qt_player', 'emb#ID', 'qt_playerEMBED', 'autoplay','false');
 		
 	    	this.html(
 				"<div id='vid_input'>" + 
 					"<span>Type video id here:</span><input type='text' id='vid'></input><button id='splicer_add_video_button'>Add video</button>" + 
 				"</div>" + 
                 		"<div id='video_container'>" +
-					"<div id='player_wrapper'><div id='YTplayerHolder'>You need Flash player 8+ and JavaScript enabled to view this video.</div>" + qt_player_text + "<div id='player_overlay'> </div></div>" + 
+					"<div id='player_wrapper'><div id='YTplayerHolder'>You need Flash player 8+ and JavaScript enabled to view this video.</div>" + "<div id='player_overlay'> </div></div>" + 
 					"<button id='play_button' class='playback-button'>" + 
 						"<svg xmlns='http://www.w3.org/2000/svg' version='1.1' id='play_svg'><polygon points='2,2 18,10 2,18'/></svg>" + 
 						"<svg xmlns='http://www.w3.org/2000/svg' version='1.1' id='pause_svg' style='display:none;'>" + 
@@ -908,6 +930,7 @@ var onPlayerStateChange;
 
 		$("#vid").css({width:"200px"});
 		$("head").append("<style>" + 
+				"#youtube_player {position:absolute;}" + 
 				"#video_container{margin:0 auto;  width:" + option.player_width + "px;}" + 
 				"#vid_input{margin:0 auto; width: 600px;}" + 
 				"div#timeline div#timeline_pane{ " + 
@@ -954,13 +977,14 @@ var onPlayerStateChange;
 				".annotation_span {background-color:#aaaaaa; height:20%; position:absolute; top:40% ;z-index:1;}" +
 				".video_timeline_bar,.video_timeline_bar_edge{width: 2px; background-color: orange; height:100%; position: absolute; }" +
 				".video_timeline_span {background-color: orange; height:20%; position:absolute; top:40%}" +
+				"#timeline #timeline_pane .video-icon img {width:120px; height:90px;}" + 
 				"p.annotation-editable{margin:0; width:100%;letter-spacing:1px;}" + 
 				"#timeline li.timeline-sortable-highlight {border: 2px solid #fcefa1;width: 116px; height: 90px; margin: 4px 6px;background: #fbf9ee; padding:0;}" +
 				"</style>");
 	    	var params = { allowScriptAccess: "always" };
     	    	var atts = { id: "youtube_player" };//The id for the inserted element by the API
     	    	swfobject.embedSWF("http://www.youtube.com/apiplayer?version=3&enablejsapi=1&playerapiid=player1", "YTplayerHolder", option.player_width, option.player_height, "9", null, null, params, atts);
-		this.player_type = "qt"; // "qt" or "youtube"		
+		//this.player_type = "qt"; // "qt" or "youtube"		
 		this.data("video_doc" , new CompositeVideo());
 		this.data("player_width", option.player_width);
 		this.data("player_height", option.player_height);
@@ -1598,6 +1622,8 @@ var onPlayerStateChange;
 			$video_span.css("width", width);
 
 			$.each(videoDocObj.videos, function(index, value) {
+			    render_timeline_marks.apply(that,[index]);
+			    if(value.source == "youtube") {
 				var xmlhttp=new XMLHttpRequest();
 				xmlhttp.onreadystatechange=function() {
 					if(xmlhttp.readyState == 4 && xmlhttp.status == 200)
@@ -1615,6 +1641,7 @@ var onPlayerStateChange;
 							var duration = (parseInt(time[1]) * 60 + parseInt(time[2]));
 							videoDocObj.videos[index].video_length = duration;
 							if(index == 0) {
+								that.player_type = "youtube";
 								that.data("range_selector").slider("option", "max", duration);
 							}
 							var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
@@ -1634,11 +1661,33 @@ var onPlayerStateChange;
 				};
 				xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + value.vid + "&part=contentDetails,snippet&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
 				xmlhttp.send();
+			    }
 
-				render_timeline_marks.apply(that,[index]);
+			    else if(value.source == "qt") {
+				vid_icon_img[index].src = value.thumbnailurl;
+				$(vid_icon_img[index]).data("videoclip",videoDocObj.videos[index]);
+				$(vid_icon_img[index]).data("video_doc",video_doc);
+				$(vid_icon_img[index]).click((function(){return function(event) {video_icon_clicked.call(that,event)} })());
+				var qt_player_text = QT_GenerateOBJECTText(value.video_url , that.data("player_width"), that.data("player_height"), '', 'postdomevents', 'True', 'EnableJavaScript', 'True', 'emb#NAME', 'qt_player', 'obj#ID', 'qt_player', 'emb#ID', 'qt_playerEMBED', 'autoplay','false');
+				var yt_placeholder = that.find("#YTplayerHolder");
+				if(index == 0) {
+				    that.player_type = "qt";
+				    if(yt_placeholder.length == 0) {
+					//Player is ready
+					$(that.find("#youtube_player")).after(qt_player_text);
+					$(that.find("#youtube_player")).css("visibility", "hidden");
+				    }
+				    else {
+					$(yt_placeholder).after(qt_player_text);
+				    }
+				    $(document.qt_player).css("visibility", "visible");
+				    that.seekCurrentVideo(value.video_url.start);
+				}
+			    }
+			    
 			} );
 				
-		}
+		}//if(videoDocObj.videos.length > 0)
 	    },
 	    onPlayerReady:function(callback) {
 		this.playerReadyFuncs.push(callback);
