@@ -1,6 +1,8 @@
 //TODO: when editing existing annotations, the start position will change to the current player time, but the more desirable way of doing it would be to preserve 
 //	the position, maybe disable the playback buttons and keyboard playback controls when there are editable regions on the player overlay
 
+//TODO: test with a qt movie as the first video
+
 //TODO: use keyboard navigation to jump to the next mark on the timeline
 //TODO: UI to delete a video
 
@@ -10,6 +12,7 @@
 
 //TODO: full screen mode ?
 //TODO: editor's mode and player's mode
+
 function Link(source_doc, target_doc) {
 	this.source_doc = source_doc;
 	this.target_doc = target_doc;
@@ -408,7 +411,7 @@ var onPlayerStateChange;
 		// The this keyword is the video splicer jquery object
 		var $li = $(event.delegateTarget);
 		var video_doc = $li.data("video_doc");
-		
+		var that = this;
 		var old_curr = video_doc.current;		
 		var videoclip = $li.data("videoclip");
 
@@ -424,20 +427,32 @@ var onPlayerStateChange;
 				$(document.qt_player).css("visibility", "hidden");
 				document.youtube_player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid, startSeconds:video_doc.videos[video_doc.current].start});
 				document.youtube_player.pauseVideo();
+				tick.call(this);
 			}
 			else if(video_doc.videos[video_doc.current].source == "qt") {
 				this.player_type = "qt";
 				$(document.qt_player).css("visibility", "visible");
 				$(document.youtube_player).css("visibility", "hidden");
 				if(!document.qt_player || !document.qt_player.SetURL) {
-					$(document.qt_player).remove();
-					var qt_player_text = QT_GenerateOBJECTText(video_doc.videos[video_doc.current].video_url , this.data("player_width"), this.data("player_height"), '', 'postdomevents', 'True', 'EnableJavaScript', 'True', 'emb#NAME', 'qt_player', 'obj#ID', 'qt_player', 'emb#ID', 'qt_playerEMBED', 'autoplay','false');
-					$(document.youtube_player).after(qt_player_text);
-					//TODO: add event listener for when the player loads to seek to the start position
+					console.error("quick time player is null in video_icon_clicked");
+					//$(document.qt_player).remove();
+					//var qt_player_text = QT_GenerateOBJECTText(video_doc.videos[video_doc.current].video_url , this.data("player_width"), this.data("player_height"), '', 'postdomevents', 'True', 'EnableJavaScript', 'True', 'emb#NAME', 'qt_player', 'obj#ID', 'qt_player', 'emb#ID', 'qt_playerEMBED', 'autoplay','false');
+					//$(document.youtube_player).after(qt_player_text);
+					//console.log(document.qt_player.GetTime());
+					
 				}
 				else {
 					document.qt_player.SetURL(video_doc.videos[video_doc.current].video_url);
-					//TODO: add event listener for when the video loads to seek to the start position
+					//add event listener for when the video loads to seek to the start position
+					document.qt_player.addEventListener("qt_loadedmetadata", function() {
+						document.qt_player.removeEventListener("qt_loadedmetadata", arguments.callee);
+						document.qt_player.SetControllerVisible(false);
+						if( Math.abs(document.qt_player.GetDuration()/1000 - video_doc.videos[video_doc.current].video_length) > 1) {
+							video_doc.videos[video_doc.current].video_length = document.qt_player.GetDuration()/1000;
+						}
+						document.qt_player.SetTime(video_doc.videos[video_doc.current].start * 1000);
+						tick.call(that);
+					} );
 				}
 			}
 		}
@@ -447,7 +462,7 @@ var onPlayerStateChange;
 		{
 			document.youtube_player.pauseVideo();
 		}
-		tick.call(this);
+		
 		this.find(".video_timeline_span").remove();
 		var $vid_span = $("<span class='video_timeline_span'></span>");
 		this.data("timeline_slider").append($vid_span);
@@ -876,6 +891,9 @@ var onPlayerStateChange;
 		};
 		onYouTubePlayerReady = function(playerId) {
 			player = document.getElementById("youtube_player");
+			if(that.player_type == "qt") {
+				$(player).css("visibility", "hidden");
+			}
 			that.data("player",player);
 			//console.log(player.style)
 			//player.style.margin = "0 auto";
@@ -887,7 +905,7 @@ var onPlayerStateChange;
 				that.playerReadyFuncs[i]();
 			var video_doc = that.data("video_doc");
 
-			//Since we are switching between youtube and quicktime players, this function is going to get called whenever we switched from quicktime player to ytplayer.
+			// Since we are switching between youtube and quicktime players, this function is going to get called whenever we switched from quicktime player to ytplayer.
 			// Should move all the stuff that has to do with the player in loadVideos function to here.
 			if(video_doc.videos[video_doc.current].source == "youtube") {
 				player.loadVideoById({videoId:video_doc.videos[video_doc.current].vid,
@@ -1664,24 +1682,36 @@ var onPlayerStateChange;
 			    }
 
 			    else if(value.source == "qt") {
+				if(!document.qt_player) {
+					var yt_placeholder = that.find("#YTplayerHolder");
+					var qt_player_text = QT_GenerateOBJECTText(value.video_url , that.data("player_width"), that.data("player_height"), '', 'postdomevents', 'True', 'EnableJavaScript', 'True', 'emb#NAME', 'qt_player', 'obj#ID', 'qt_player', 'emb#ID', 'qt_playerEMBED', 'autoplay','false');
+					//console.log(value);					
+					if(yt_placeholder.length == 0) {
+						//Player is ready
+						$(document.youtube_player).after(qt_player_text);
+						$(document.youtube_player).css("visibility", "hidden");
+				   	 }
+				    	else {
+						$(yt_placeholder).after(qt_player_text);
+				    	}
+				}
 				vid_icon_img[index].src = value.thumbnailurl;
 				$(vid_icon_img[index]).data("videoclip",videoDocObj.videos[index]);
 				$(vid_icon_img[index]).data("video_doc",video_doc);
 				$(vid_icon_img[index]).click((function(){return function(event) {video_icon_clicked.call(that,event)} })());
-				var qt_player_text = QT_GenerateOBJECTText(value.video_url , that.data("player_width"), that.data("player_height"), '', 'postdomevents', 'True', 'EnableJavaScript', 'True', 'emb#NAME', 'qt_player', 'obj#ID', 'qt_player', 'emb#ID', 'qt_playerEMBED', 'autoplay','false');
-				var yt_placeholder = that.find("#YTplayerHolder");
+				
 				if(index == 0) {
 				    that.player_type = "qt";
-				    if(yt_placeholder.length == 0) {
-					//Player is ready
-					$(that.find("#youtube_player")).after(qt_player_text);
-					$(that.find("#youtube_player")).css("visibility", "hidden");
-				    }
-				    else {
-					$(yt_placeholder).after(qt_player_text);
-				    }
-				    $(document.qt_player).css("visibility", "visible");
 				    that.seekCurrentVideo(value.video_url.start);
+				    document.qt_player.addEventListener("qt_loadedmetadata", function() {
+					document.qt_player.removeEventListener("qt_loadedmetadata", arguments.callee);
+					document.qt_player.SetTime(value.start * 1000);
+					document.qt_player.SetControllerVisible(false);
+					var duration = document.qt_player.GetDuration();
+					if(Math.abs(duration/1000 - value.video_length) > 1) {
+						//TODO: The video length provided to the loadVideos method is not accurate, update the slider timeline and the video_doc
+					}
+				    });
 				}
 			    }
 			    
