@@ -6,12 +6,11 @@
 //TODO: use keyboard navigation to jump to the next mark on the timeline
 //TODO: UI to delete a video
 
-//TODO: red position vertical bar for timeline pane view
 //TODO: edit annotation color and background color and opacity
 //TODO: prevent cross site scripting during annotation text input
 
 //TODO: full screen mode ?
-//TODO: editor's mode and player's mode
+//TODO: editor's mode and player's mode ?
 
 function Link(source_doc, target_doc) {
 	this.source_doc = source_doc;
@@ -27,7 +26,7 @@ function VideoClip(param) {
 	var option = $.extend({}, default_option, param);
 	
 	this.vid = option.vid;
-	this.source = option.source; // "youtube" or "streaming"
+	this.source = option.source; // "youtube" or "qt"
 	this.thumbnailurl = option.thumbnailurl; // This url is used when the video is not from youtube.
 	this.video_url = option.video_url; //This url is for non youtube videos
 
@@ -182,8 +181,8 @@ var onYouTubePlayerReady;
 var onPlayerStateChange;
 
 (function($){
+	var QT_SEEK_TIMEOUT = 300;
 	var video_timer = null;
-	
 	var annotation_bar_nudge = function (delta, $bar) {
 		var video_doc = this.data("video_doc");
 		var video_clip = video_doc.videos[$bar.data("indices").video_ind];
@@ -406,6 +405,22 @@ var onPlayerStateChange;
 		}
 	    };
 
+	    var getQTFitSize = function(qt_player, player_width, player_height) {
+		var rect = qt_player.GetRectangle();
+		var pattern = /\s*\d+\s*,\s*\d+\s*,\s*(\d+)\s*,\s*(\d+)\s*/;
+		var res = rect.match(pattern);
+		var w = parseInt(res[1]), h = parseInt(res[2]), asp_ratio = w/h, width = 0, height = 0;
+		if(player_width / asp_ratio > player_height) {
+			height = player_height;
+			width = height * asp_ratio;
+		}
+		else {
+			width = player_width;
+			height = width / asp_ratio;
+		}
+		return {width: width, height:height};
+	    }
+
 	    var video_icon_clicked = function(event) {
 		//TODO: check the type of the video
 		// The this keyword is the video splicer jquery object
@@ -414,7 +429,7 @@ var onPlayerStateChange;
 		var that = this;
 		var old_curr = video_doc.current;		
 		var videoclip = $li.data("videoclip");
-
+		console.log(videoclip);
 		if(video_doc.Reposition(videoclip.position))
 		{
 			var video_icons = this.find(".video-icon");
@@ -439,20 +454,40 @@ var onPlayerStateChange;
 					//var qt_player_text = QT_GenerateOBJECTText(video_doc.videos[video_doc.current].video_url , this.data("player_width"), this.data("player_height"), '', 'postdomevents', 'True', 'EnableJavaScript', 'True', 'emb#NAME', 'qt_player', 'obj#ID', 'qt_player', 'emb#ID', 'qt_playerEMBED', 'autoplay','false');
 					//$(document.youtube_player).after(qt_player_text);
 					//console.log(document.qt_player.GetTime());
-					
 				}
 				else {
-					document.qt_player.SetURL(video_doc.videos[video_doc.current].video_url);
-					//add event listener for when the video loads to seek to the start position
-					document.qt_player.addEventListener("qt_loadedmetadata", function() {
-						document.qt_player.removeEventListener("qt_loadedmetadata", arguments.callee);
+					if(document.qt_player.GetURL() != video_doc.videos[video_doc.current].video_url) {
+						console.log("qt loading a different video");
+						document.qt_player.SetURL(video_doc.videos[video_doc.current].video_url);
+						//add event listener for when the video loads to seek to the start position
+						document.qt_player.addEventListener("qt_loadedmetadata", function() {
+							document.qt_player.removeEventListener("qt_loadedmetadata", arguments.callee);
+							document.qt_player.SetControllerVisible(false);
+							//var size = getQTFitSize(document.qt_player,that.data("player_width"), that.data("player_height"));
+							if( Math.abs(document.qt_player.GetDuration()/1000 - video_doc.videos[video_doc.current].video_length) > 1) {
+								video_doc.videos[video_doc.current].video_length = document.qt_player.GetDuration()/1000;
+							}
+							document.qt_player.SetTime(video_doc.videos[video_doc.current].start * 1000);
+							document.qt_player.Play();
+							if(!video_doc.isPlaying) {
+								setTimeout(function() { if(!video_doc.isPlaying) document.qt_player.Stop(); }, QT_SEEK_TIMEOUT);
+							}
+							console.log("calling tick");
+							console.log(video_doc);
+							tick.call(that);
+						} );
+					}
+					else {
 						document.qt_player.SetControllerVisible(false);
-						if( Math.abs(document.qt_player.GetDuration()/1000 - video_doc.videos[video_doc.current].video_length) > 1) {
-							video_doc.videos[video_doc.current].video_length = document.qt_player.GetDuration()/1000;
-						}
 						document.qt_player.SetTime(video_doc.videos[video_doc.current].start * 1000);
+						//console.log(document.qt_player.GetRectangle());
+						//var size = getQTFitSize(document.qt_player,that.data("player_width"), that.data("player_height"));
+						//var rect_str = (that.data("player_width")-size.width) / 2 + ", " + (that.data("player_height")-size.height) / 2 + " , " + size.width + ", " + size.height;
+						document.qt_player.Play();
+						if(!video_doc.isPlaying)
+							setTimeout(function() { if(!video_doc.isPlaying) document.qt_player.Stop(); }, QT_SEEK_TIMEOUT);
 						tick.call(that);
-					} );
+					}
 				}
 			}
 		}
@@ -488,14 +523,20 @@ var onPlayerStateChange;
 
 		if(this.player_type == "youtube" && video_doc.videos[video_doc.current].source == "qt")
 		{
-			//TODO: if qt player is not present then add the player
+			if(!document.qt_player || !document.qt_player.SetURL) {
+				console.error("quick time player not loaded, should do this in loadVideos or addVideo");
+			}
 			this.player_type = "qt";
+			player.pauseVideo();
 			$(document.qt_player).css("visibility", "visible");
+			document.qt_player.SetControllerVisible(false);
 			$(player).css("visibility", "hidden");
+			
 		}
 		else if(this.player_type == "qt" && video_doc.videos[video_doc.current].source == "youtube")
 		{
-			this.player_type = "youtube"
+			this.player_type = "youtube";
+			document.qt_player.Stop();
 			$(document.qt_player).css("visibility", "hidden");
 			$(player).css("visibility", "visible");
 		}
@@ -515,8 +556,18 @@ var onPlayerStateChange;
 						startSeconds:video_doc.videos[0].start} );
 				else
 				{
-					document.qt_player.SetURL(video_doc.videos[0].video_url);
-					this.seekCurrentVideo(video_doc.videos[0].start);
+					if(document.qt_player.GetURL() != video_doc.videos[0].video_url) {
+						document.qt_player.SetURL(video_doc.videos[0].video_url);
+						document.qt_player.addEventListener("qt_loadedmetadata", function() {
+							document.qt_player.removeEventListener("qt_loadedmetadata", arguments.callee);
+							document.qt_player.SetTime(video_doc.videos[0].start * 1000);
+							document.qt_player.Play();
+							if(!video_doc.isPlayer)
+								setTimeout(function() { if(!video_doc.isPlaying) document.qt_player.Stop(); }, QT_SEEK_TIMEOUT);
+						});
+					}
+					else
+						this.seekCurrentVideo(video_doc.videos[0].start);
 				}
 			}
 			else
@@ -542,8 +593,23 @@ var onPlayerStateChange;
 					startSeconds:start_at});
 			else
 			{
-				document.qt_player.SetURL(video_doc.videos[video_doc.current].video_url);
-				this.seekCurrentVideo(video_doc.videos[video_doc.current].start);
+				if(document.qt_player.GetURL() != video_doc.videos[video_doc.current].video_url) {
+					document.qt_player.SetURL(video_doc.videos[video_doc.current].video_url);
+					document.qt_player.addEventListener("qt_loadedmetadata", function() {
+						document.qt_player.removeEventListener("qt_loadedmeatadata", arguments.callee);
+						document.qt_player.SetTime(video_doc.videos[video_doc.current].start * 1000.0);
+						document.qt_player.Play();
+						if(!video_doc.isPlaying)
+							setTimeout(function() { if(!video_doc.isPlaying) document.qt_player.Stop(); }, QT_SEEK_TIMEOUT);
+					});
+				}
+				else {
+					console.log("(Switch_to_next_video): seeking to a quick time video at " + video_doc.videos[video_doc.current].start);
+					document.qt_player.SetTime(video_doc.videos[video_doc.current].start * 1000.0);
+					document.qt_player.Play();
+					if(!video_doc.isPlaying)
+						setTimeout(function() { if(!video_doc.isPlaying) document.qt_player.Stop(); }, QT_SEEK_TIMEOUT);
+				}
 			}
 		}
 
@@ -619,6 +685,9 @@ var onPlayerStateChange;
 		this.unbind("keydown", splicer_keydown);
 		this.bind("keydown.myEvents", splicer_keydown);
 		var $region = this.data("player_overlay").find(".annotation_wrapper");
+		var annotation = $region.data("annotation");
+		console.log(annotation);
+
 		var $region_bg = $region.find(".annotation_region");
 		var textarea_annotation = $region_bg.find("textarea");
 		var content = "";
@@ -645,9 +714,9 @@ var onPlayerStateChange;
 		var foreground = $region_bg.css("color");	
 
 		// save the annotation
-		var duration = $region_bg.data("duration") || 10;
-
-		var annotation = new VideoAnnotation({content:content, duration: duration, position: that.getPlayerTime(), rect:{top: top, bottom: bottom, left:left, right: right},background:{r:r, g:g, b:b, a:a}, foreground:foreground});
+		var duration = annotation? annotation.duration : 10;
+		var position = annotation? annotation.position : this.getPlayerTime();
+		annotation = new VideoAnnotation({content:content, duration: duration, position: position, rect:{top: top, bottom: bottom, left:left, right: right},background:{r:r, g:g, b:b, a:a}, foreground:foreground});
 		video_doc.videos[video_doc.current].annotations.push(annotation);
 		annotation.video_index = video_doc.current;
 		annotation.index = video_doc.videos[video_doc.current].annotations.length - 1;
@@ -684,6 +753,9 @@ var onPlayerStateChange;
 			// Remove the annotation, then show the editable region
 			//console.log(annotation);
 			//console.log("Double clicked on an annotation");
+
+			//TODO: remember the original starting position and duration of the annotation.
+
 			var video_doc = that.data("video_doc");
 			if(video_doc.isPlaying)
 			{
@@ -695,13 +767,12 @@ var onPlayerStateChange;
 				that.data("play_button").find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
 			}
 			var content = $annotation.text();
-			console.log(content);
 			$annotation.remove();
 			var $region = $("<div class='annotation_wrapper'><div class='annotation_region'></div><span class='annotation_ok'></span><span class='annotation_cancel'></span></div>");
 			$player_overlay.append($region);
 		
 			var $region_bg = $region.find(".annotation_region");		
-
+			$region.data("annotation", annotation);
 			$region_bg.resizable({containment: "#video_player", resize: function() { return function(event, ui) {annotation_region_onresize.apply(that, [event, ui])} } ()});
 		
 			$region_bg.data("first_region_click",{x:0, y:0});
@@ -923,7 +994,7 @@ var onPlayerStateChange;
 		this.css("outline", "none");
 		
 	    	this.html(
-				"<div id='vid_input'>" + 
+				"<div id='vsr_main'><div id='vid_input'>" + 
 					"<span>Type video id here:</span><input type='text' id='vid'></input><button id='splicer_add_video_button'>Add video</button>" + 
 				"</div>" + 
                 		"<div id='video_container'>" +
@@ -944,10 +1015,32 @@ var onPlayerStateChange;
                 		"<div id='splicer_range_selector'></div>" +
                 		"<div id='timeline'><div id='splicer_timeline_slider'></div>" + 
 					"<div id='timeline_pane'> <div id='timeline_scroll_content'><ul></ul></div> <div class='slider-wrapper'><div id='timeline_scrollbar'></div> </div></div>" + 
-				"</div>");
+				"</div></div>" + 
+				"<div id='vsr_addvideo_sidebar'>" +
+					"<span id='add_video_panel'>" + 
+						"<div id='add_video_search_bar'><input type='text' id='search_phrase_input' placeholder='search for videos'></input> <button id='search_button'>Search</button></div>" +
+						"<div id='search_results'></div>" +
+					"</span>" +
+					"<span id='add_video_handle'> <div></div> <div></div></span>" +
+				"</div>"
+		);
 
 		$("#vid").css({width:"200px"});
 		$("head").append("<style>" + 
+				"#vsr_addvideo_sidebar {width:400px; height:96%; position:fixed; top:2%; left:-400px;  background-color:rgba(200,200,200,0.9); z-index:5; }" +
+				"div span#add_video_handle {position: absolute; left:100%; top:5%; height:50px; width:20px; background-color:rgba(100,100,100,1)}" + 
+				"div span#add_video_handle:hover {background-color:rgba(150,150,150,1)}" +
+				"#add_video_panel {width:380px;}" + 
+				"#add_video_search_bar{margin-top:5%;}" + 
+				"#search_phrase_input {width: 70%; margin-left:10px;}" +
+				"#search_button {}" +  
+				"#search_results {overflow:auto;}" +
+				".search_result_video{clear:both; margin-top:8px; margin-bottom:8px; border-bottom-color:#999; border-bottom-style:solid; border-bottom-width:1px;}" +
+				".search_result_video img{margin-right:5px; margin-left:5px;}" + 
+				".search_result_video p {font-size:14px; margin:0px; margin-bottom:3px;}" + 
+				".search_result_video p.video_description{margin-top:8px;}" + 
+				".search_result_video_icon{float:left;}" +
+
 				"#youtube_player {position:absolute;}" + 
 				"#video_container{margin:0 auto;  width:" + option.player_width + "px;}" + 
 				"#vid_input{margin:0 auto; width: 600px;}" + 
@@ -1007,6 +1100,56 @@ var onPlayerStateChange;
 		this.data("player_width", option.player_width);
 		this.data("player_height", option.player_height);
 		this.data("video_timer", video_timer);
+		var $left_handle = $("div span#add_video_handle");
+		var $left_sidebar = $("#vsr_addvideo_sidebar");
+		var px_regex = /(-*\d+)px/;
+		$left_handle.click(function() {
+			var left = parseInt($left_sidebar.css("left").match(px_regex)[1]);
+			console.log(left);
+			if(left == -400)
+			    $left_sidebar.animate({left:"10px"},500);
+			else
+			    $left_sidebar.animate({left:"-400px"},500);
+		});
+
+		var $search_button = $("#search_button");
+		var $search_results = $("#search_results");
+		
+		var left_sidebar_height = parseInt($left_sidebar.css("height").match(px_regex)[1]);
+		console.log("left_sidebar height: " + left_sidebar_height);
+		$search_results.css("max-height", left_sidebar_height * 0.85 + "px");
+
+		$(window).resize(function() {
+			left_sidebar_height = parseInt($left_sidebar.css("height").match(px_regex)[1]);
+			$search_results.css("max-height", left_sidebar_height * 0.85 + "px");
+		});		
+
+		$search_button.click(function() {
+			var search_phrase = document.getElementById("search_phrase_input").value;
+			$.ajax({url: "https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=7&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8&q=" + search_phrase,
+				success: function(response) {
+					$search_results.html("");
+					console.log(response);
+					console.log(response.items[0]);
+					response.items.forEach(function(e, index, arr) {
+						var $result_item = $(
+							"<div class='search_result_video'><img class='search_result_video_icon' alt='" + e.snippet.title + "' src='" + e.snippet.thumbnails.default.url + "'></img>" + 
+								"<p class='video_title'>Title: " + e.snippet.title + "</p> " + 
+								"<p class='video_channel'>Channel: " + e.snippet.channelTitle+ "</p> " + 
+								"<p class='video_date'>Published: " + e.snippet.publishedAt + "</p>" + 
+								"<p class='video_description'>" + e.snippet.description + "</p>" + 
+								"<div><button class='preview_button'>Preview</button> <button class='add_button'>Add</button></div>" +
+							"</div>");
+						$search_results.append($result_item);
+						$result_item.find("button.add_button").click(function() {
+							addVideoById(e.id.videoId);
+						});
+					});
+				}
+			});
+		});
+
+
 		//*************************************** Unbind the mouse move events here **********************************
 		this.mouseup( mouseup_unbind );
 		
@@ -1071,12 +1214,11 @@ var onPlayerStateChange;
 		console.log($annotation.data("annotation")); // This should be undefined at this point, but $annotation still has the html content
 		//*/
 
-		var add_video_button_click = function () {
-			if(!player)
-				return;
-			// Send an xmlhttp request to test if the video id is valid
+
+		function addVideoById(id) {
+			if(!id) return;
 			var xmlhttp=new XMLHttpRequest();
-			var videoid = document.getElementById('vid').value;
+			var videoid = id;
 			xmlhttp.onreadystatechange=function() {
 				var video_doc = that.data("video_doc");
 				if (xmlhttp.readyState==4 && xmlhttp.status==200)
@@ -1093,7 +1235,7 @@ var onPlayerStateChange;
 						var regex = /PT(\d+)M(\d+)S/i;
 						var time = response.items[0].contentDetails.duration.match(regex);
 						var dur = (parseInt(time[1]) * 60 + parseInt(time[2]));
-						video_doc.AddVideo(new VideoClip({vid:videoid, start:0.0, duration:dur, video_length:dur}));
+						video_doc.AddVideo(new VideoClip({vid:videoid, start:0.0, duration:dur, video_length:dur, source:"youtube"}));
 						var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
 						var new_li = $("<li><div class='video-icon'><img src='" + vid_thumbnail_url + "' alt='Video " + video_doc.videos.length +"'/></div></li>");
 						that.find("div#timeline_pane div#timeline_scroll_content ul")
@@ -1136,6 +1278,11 @@ var onPlayerStateChange;
 			};
 			xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=contentDetails,snippet&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
 			xmlhttp.send();
+		}
+		var add_video_button_click = function () {
+			if(!player)
+				return;
+			addVideoById(document.getElementById('vid').value);
 		};
 
 		var $range_selector = $("#splicer_range_selector");
@@ -1144,17 +1291,44 @@ var onPlayerStateChange;
 		var timeline_slider_onchanged = function() {
 			var video_doc = that.data("video_doc");
 			var old_curr = video_doc.current;
+			//console.log("old current is " + old_curr);
 			if(video_doc.Reposition($timeline_slider.slider("option","value"))) 
 			{
+				console.log("Current changed to " + video_doc.current + " after repositioning");
 				var $video_icons = that.find(".video-icon");
 				$($video_icons[video_doc.current]).addClass("current-video");
 				$($video_icons[old_curr]).removeClass("current-video");
+				console.log(that.player_type);
+				if(that.player_type == "youtube" && video_doc.videos[video_doc.current].source == "qt")
+				{
+					console.log("Making qt player visible");
+					if(!document.qt_player || !document.qt_player.SetURL) {
+						console.error("quick time player not loaded, should do this in loadVideos or addVideo");
+					}
+					that.player_type = "qt";
+					player.pauseVideo();
+					$(document.qt_player).css("visibility", "visible");
+					document.qt_player.SetControllerVisible(false);
+					$(player).css("visibility", "hidden");
+			
+				}
+				else if(that.player_type == "qt" && video_doc.videos[video_doc.current].source == "youtube")
+				{
+					that.player_type = "youtube";
+					document.qt_player.Stop();
+					$(document.qt_player).css("visibility", "hidden");
+					$(player).css("visibility", "visible");
+				}
+		
 				var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
 				if(that.player_type == "youtube")
 					player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid,
 						startSeconds:start_at});
 				else {
+					console.log(video_doc.videos[video_doc.current]);
 					document.qt_player.SetURL(video_doc.videos[video_doc.current].video_url);
+					//TODO: add event listener for seeking after loading, try setting the start time of the video SetStartTime() to two seconds earlier 
+					// and see if that will fix the keyframe not loaded problem
 					that.seekCurrentVideo(start_at);
 				}				
 				var duration = video_doc.videos[video_doc.current].video_length;
@@ -1200,8 +1374,16 @@ var onPlayerStateChange;
 				that.playVideo();
 				video_timer = setInterval( (function(videosplicer){ return function() {tick.call(videosplicer)};}) (that) , 100);
 			}
-			else
+			else {
 				that.pauseVideo();
+				if(that.player_type == "qt") {
+				    document.qt_player.Play();
+				    setTimeout(function() { 
+					console.log("Resuming for " + QT_SEEK_TIMEOUT + " miliseconds.");
+					if(!that.data("video_doc").isPlaying) document.qt_player.Stop(); 
+				    } , QT_SEEK_TIMEOUT);
+				}
+			}
 		}; 
 		var slider_onslide = function(event, ui) {
 			that.seekCurrentVideo(ui.value);
@@ -1684,7 +1866,7 @@ var onPlayerStateChange;
 			    else if(value.source == "qt") {
 				if(!document.qt_player) {
 					var yt_placeholder = that.find("#YTplayerHolder");
-					var qt_player_text = QT_GenerateOBJECTText(value.video_url , that.data("player_width"), that.data("player_height"), '', 'postdomevents', 'True', 'EnableJavaScript', 'True', 'emb#NAME', 'qt_player', 'obj#ID', 'qt_player', 'emb#ID', 'qt_playerEMBED', 'autoplay','false');
+					var qt_player_text = QT_GenerateOBJECTText(value.video_url , that.data("player_width"), that.data("player_height"), '', 'postdomevents', 'True', 'EnableJavaScript', 'True', 'emb#NAME', 'qt_player', 'obj#ID', 'qt_player', 'emb#ID', 'qt_playerEMBED', 'autoplay','false', 'SCALE','Aspect');
 					//console.log(value);					
 					if(yt_placeholder.length == 0) {
 						//Player is ready
@@ -1695,24 +1877,33 @@ var onPlayerStateChange;
 						$(yt_placeholder).after(qt_player_text);
 				    	}
 				}
+				if(index == 0) that.player_type = "qt";
+				document.qt_player.addEventListener("qt_loadedmetadata", function() {
+					if(index == 0) {
+						$(document.qt_player).css("visibility", "visible");
+						document.qt_player.SetControllerVisible(false);
+						$(player).css("visibility", "hidden");
+					}
+					else {
+						$(document.qt_player).css("visibility", "hidden");
+					}
+					document.qt_player.removeEventListener("qt_loadedmetadata", arguments.callee);
+					document.qt_player.SetTime(value.start * 1000);
+					document.qt_player.Play();
+					setTimeout(function() { if(!video_doc.isPlaying) document.qt_player.Stop(); }, QT_SEEK_TIMEOUT);
+					document.qt_player.SetControllerVisible(false);
+					var duration = document.qt_player.GetDuration();
+					//var size = getQTFitSize(document.qt_player,that.data("player_width"), that.data("player_height"));
+					
+					if(Math.abs(duration/1000 - value.video_length) > 1) {
+						//TODO: The video length provided to the loadVideos method is not accurate, update the slider timeline and the video_doc
+					}
+			    	});
 				vid_icon_img[index].src = value.thumbnailurl;
 				$(vid_icon_img[index]).data("videoclip",videoDocObj.videos[index]);
 				$(vid_icon_img[index]).data("video_doc",video_doc);
 				$(vid_icon_img[index]).click((function(){return function(event) {video_icon_clicked.call(that,event)} })());
-				
-				if(index == 0) {
-				    that.player_type = "qt";
-				    that.seekCurrentVideo(value.video_url.start);
-				    document.qt_player.addEventListener("qt_loadedmetadata", function() {
-					document.qt_player.removeEventListener("qt_loadedmetadata", arguments.callee);
-					document.qt_player.SetTime(value.start * 1000);
-					document.qt_player.SetControllerVisible(false);
-					var duration = document.qt_player.GetDuration();
-					if(Math.abs(duration/1000 - value.video_length) > 1) {
-						//TODO: The video length provided to the loadVideos method is not accurate, update the slider timeline and the video_doc
-					}
-				    });
-				}
+
 			    }
 			    
 			} );
