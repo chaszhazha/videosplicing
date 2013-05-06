@@ -790,7 +790,7 @@ var onPlayerStateChange;
 			$player_overlay.append($region);
 			$region_bg.css({width:annotation.rect.width + "px", height:annotation.rect.height + "px", color:annotation.foreground,
 				backgroundColor: "rgba(" + annotation.background.r + "," + annotation.background.g + "," + annotation.background.b + "," + annotation.background.a + ")"});
-			$region.css({top:annotation.rect.top + "px", left:annotation.rect.left + "px", });
+			$region.css({top:annotation.rect.top + "px", left:annotation.rect.left + "px"});
 			$(this).data("region",$region);
 
 			//remove the annotation marks on the timeline bar, also remove the annotation from the video clip so that a seek does not bring up another copy of this annotation
@@ -1132,8 +1132,9 @@ var onPlayerStateChange;
 					console.log(response);
 					console.log(response.items[0]);
 					response.items.forEach(function(e, index, arr) {
+						var img_url = e.snippet.thumbnails['default'].url;
 						var $result_item = $(
-							"<div class='search_result_video'><img class='search_result_video_icon' alt='" + e.snippet.title + "' src='" + e.snippet.thumbnails.default.url + "'></img>" + 
+							"<div class='search_result_video'><img class='search_result_video_icon' alt='" + e.snippet.title + "' src='" + (img_url) + "'></img>" + 
 								"<p class='video_title'>Title: " + e.snippet.title + "</p> " + 
 								"<p class='video_channel'>Channel: " + e.snippet.channelTitle+ "</p> " + 
 								"<p class='video_date'>Published: " + e.snippet.publishedAt + "</p>" + 
@@ -1236,7 +1237,7 @@ var onPlayerStateChange;
 						var time = response.items[0].contentDetails.duration.match(regex);
 						var dur = (parseInt(time[1]) * 60 + parseInt(time[2]));
 						video_doc.AddVideo(new VideoClip({vid:videoid, start:0.0, duration:dur, video_length:dur, source:"youtube"}));
-						var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
+						var vid_thumbnail_url = response.items[0].snippet.thumbnails['default'].url;
 						var new_li = $("<li><div class='video-icon'><img src='" + vid_thumbnail_url + "' alt='Video " + video_doc.videos.length +"'/></div></li>");
 						that.find("div#timeline_pane div#timeline_scroll_content ul")
 							.append(new_li);
@@ -1738,7 +1739,7 @@ var onPlayerStateChange;
 			var handleSize = $timeline_scroll_pane.width() - ( proportion * $timeline_scroll_pane.width() );
 			$timeline_scrollbar.find( ".ui-slider-handle" ).css({
        			 	width: handleSize,
-        			"margin-left": -handleSize / 2,
+        			"margin-left": -handleSize / 2
      		 	});
 		};
 
@@ -1844,7 +1845,7 @@ var onPlayerStateChange;
 								that.player_type = "youtube";
 								that.data("range_selector").slider("option", "max", duration);
 							}
-							var vid_thumbnail_url = response.items[0].snippet.thumbnails.default.url;
+							var vid_thumbnail_url = response.items[0].snippet.thumbnails['default'].url;
 							console.log(index + ": " + vid_thumbnail_url);
 							vid_icon_img[index].src = vid_thumbnail_url;
 							$(vid_icon_img[index]).data("videoclip",videoDocObj.videos[index]);
