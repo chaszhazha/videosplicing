@@ -56,6 +56,36 @@ function CompositeVideo() { // Composite video class
 	this.isPlaying = false;
 }
 
+CompositeVideo.prototype.toJSON = function () {
+	var obj = {
+		duration: this.duration,
+		videos:[]
+	};
+	this.videos.forEach(function(video, index, arr) {
+		var videoclip = {};
+		videoclip.duration = video.duration;
+		videoclip.end = video.end;
+		videoclip.index = video.index;
+		videoclip.position = video.position;
+		videoclip.source = video.source;
+		videoclip.start = video.start;
+		videoclip.thumbnailurl = video.thumbnailurl;
+		videoclip.vid = video.vid;
+		videoclip.video_length = video.video_length;
+		videoclip.video_url = video.video_url;
+		videoclip.annotations = [];
+		video.annotations.forEach(function(annotation, ind, annotations) {
+			videoclip.annotations.push({background: annotation.background, content: annotation.content, 
+				duration: annotation.duration, end: annotation.end, foreground: annotation.foreground,
+				index: annotation.index, opacity: annotation.opacity, position: annotation.position,
+				rect: annotation.rect, video_index: annotation.video_index
+			});
+		});
+		obj.videos.push(videoclip);
+	});
+	return JSON.stringify(obj);
+}
+
 CompositeVideo.prototype.AddVideo = function(arg)
 {
 	if(!arg) {
@@ -804,7 +834,7 @@ var onPlayerStateChange;
 			$region_bg.data("first_region_click",{x:0, y:0});
 			$region_bg.data("last_region_click",{x:0, y:0});
 			$region_bg.data("duration", annotation.duration);
-			$region_bg.bind("mousedown", this, region_mousedown);
+			$region_bg.bind("mousedown", this, region_mousedown);CompositeVideo.prototype
 			$region_bg.bind("mouseup", this, region_mouseup);
 			var $p_content = $("<p class='annotation-editable'></p>");
 			$p_content.text(content);
@@ -1158,8 +1188,8 @@ var onPlayerStateChange;
 			$.ajax({url: "https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=7&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8&q=" + search_phrase,
 				success: function(response) {
 					$search_results.html("");
-					console.log(response);
-					console.log(response.items[0]);
+					//console.log(response);
+					//console.log(response.items[0]);
 					response.items.forEach(function(e, index, arr) {
 						var img_url = e.snippet.thumbnails['default'].url;
 						var $result_item = $(

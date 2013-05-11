@@ -80,12 +80,20 @@ function Next() {
 
 function getVideoSplicerState() {
 	//Return a json string of the video_doc
+	//console.log($splicer.data("video_doc"));
 	if($splicer)
-		return JSON.stringify($splicer.data("video_doc"));
+		return $splicer.data("video_doc").toJSON();
 }
 
 function setVideoSplicerState(state) {
 	//TODO: Set the video_doc to state, reinitialize the splicer
+	var args = $.parseJSON(state);
+	console.log(args);
+	var video_doc = new CompositeVideo();
+	video_doc.duration = args.duration;
+	args.videos.forEach(function(video, ind, videos) {
+		//TODO: construct video_doc and load videos.
+	});
 }
 
 function ShowControls() {
