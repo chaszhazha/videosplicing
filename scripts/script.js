@@ -86,14 +86,26 @@ function getVideoSplicerState() {
 }
 
 function setVideoSplicerState(state) {
-	//TODO: Set the video_doc to state, reinitialize the splicer
+	//Set the video_doc to state, reinitialize the splicer
 	var args = $.parseJSON(state);
 	console.log(args);
 	var video_doc = new CompositeVideo();
 	video_doc.duration = args.duration;
+	video_doc.position = 0;
+	video_doc.current = 0;
 	args.videos.forEach(function(video, ind, videos) {
-		//TODO: construct video_doc and load videos.
+		var video_clip = new VideoClip({position:video.position, index: video.index, vid:video.vid, start: video.start, duration: video.duration, video_length:video.video_length , source:video.source, video_url: video.video_url, thumbnailurl:video.thumbnailurl });
+		video.annotations.forEach(function(ann, ind, annotations) {
+			video_clip.AddAnnotation(ann);
+		});		
+		video_doc.videos.push(video_clip);
 	});
+	$splicer.find("#timeline_scroll_content ul").html("");
+	$splicer.data("timeline_slider").slider("option","value", 0);
+	$splicer.find(".video_timeline_span").remove();
+	$splicer.find("video_timeline_bar").remove();
+	$splicer.find("annotation_group").remove();
+	$splicer.videosplicer("loadVideos", video_doc);
 }
 
 function ShowControls() {

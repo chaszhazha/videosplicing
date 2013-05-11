@@ -1994,6 +1994,11 @@ var onPlayerStateChange;
 							if(index == 0) {
 								that.player_type = "youtube";
 								that.data("range_selector").slider("option", "max", duration);
+								if(that.data("player")) {
+									that.data("player").loadVideoById({videoId:value.vid,
+										startSeconds:value.start});
+									that.data("player").pauseVideo();
+								}
 							}
 							var vid_thumbnail_url = response.items[0].snippet.thumbnails['default'].url;
 							console.log(index + ": " + vid_thumbnail_url);
