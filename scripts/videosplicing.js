@@ -159,6 +159,9 @@ function VideoAnnotation(a) {
 	this.content = args.content;
 	this.duration = args.duration;
 	this.position = args.position; // This should be the position that the annotation will show up in the video that it is associated with.
+	
+	
+	// The coordinates are relative to the size parameters passed as the player_width and player_height
 	this.rect = {top:args.rect.top, bottom:args.rect.bottom, left: args.rect.left, right:args.rect.right, width: args.rect.right - args.rect.left, height: args.rect.bottom - args.rect.top};
 	this.rect.width = this.rect.width > 0 ? this.rect.width : 0;
 	this.rect.height = this.rect.height > 0 ? this.rect.height : 0;
@@ -716,6 +719,7 @@ var onPlayerStateChange;
 		// save the annotation
 		var duration = annotation? annotation.duration : 10;
 		var position = annotation? annotation.position : this.getPlayerTime();
+	
 		annotation = new VideoAnnotation({content:content, duration: duration, position: position, rect:{top: top, bottom: bottom, left:left, right: right},background:{r:r, g:g, b:b, a:a}, foreground:foreground});
 		video_doc.videos[video_doc.current].annotations.push(annotation);
 		annotation.video_index = video_doc.current;
@@ -733,6 +737,30 @@ var onPlayerStateChange;
 	};
 
 	var show_annotation = function(annotation) {
+
+		var top, left, width, height;
+		if(!this.data("controls_displayed")) {
+			var ratio, o = {x:0, y:0};
+			if(this.data("player_width") / this.data("player_height") > document.width / document.height) {
+				ratio = document.width / this.data("player_width");
+				o.y = (document.height - this.data("player_height") * ratio) / 2;
+			}
+			else {
+				ratio = document.height / this.data("player_height");
+				o.x = (document.width - this.data("player_width") * ratio) / 2;
+			}
+			left = o.x + annotation.rect.left * ratio;
+			top = o.y + annotation.rect.top * ratio;
+			width = annotation.rect.width * ratio;
+			height = annotation.rect.height * ratio;
+		}
+		else {
+			top = annotation.rect.top;
+			left = annotation.rect.left;
+			width = annotation.rect.width;
+			height = annotation.rect.height;
+		}
+
 		// annotation should be an object that has properties like text, rect location and size, opacity, start_position, end_position  etc
 		//var default_annotation = {opacity:0.6, rect: {top:20, left:20, width:100, height:100}, content:""};
 		//var annotation = $.extend(true, {}, default_annotation, a);
@@ -742,8 +770,8 @@ var onPlayerStateChange;
 		//console.log("content added to div#player_wrapper with width " + annotation.rect.width + "px and height " + annotation.rect.height + "px");
 		$annotation.data("annotation",annotation);
 		//console.log(annotation.opacity);
-		$annotation.css({opacity:annotation.opacity, top:annotation.rect.top + "px", left: annotation.rect.left + "px",
-			 width: annotation.rect.width + "px", height: annotation.rect.height + "px", color:annotation.foreground,
+		$annotation.css({opacity:annotation.opacity, top:top + "px", left: left + "px",
+			 width: width + "px", height: height + "px", color:annotation.foreground,
 			 backgroundColor: "rgba(" + annotation.background.r + "," + annotation.background.g + "," + annotation.background.b + "," + annotation.background.a + ")"});
 		
 		var that = this;
@@ -753,8 +781,6 @@ var onPlayerStateChange;
 			// Remove the annotation, then show the editable region
 			//console.log(annotation);
 			//console.log("Double clicked on an annotation");
-
-			//TODO: remember the original starting position and duration of the annotation.
 
 			var video_doc = that.data("video_doc");
 			if(video_doc.isPlaying)
@@ -773,7 +799,7 @@ var onPlayerStateChange;
 		
 			var $region_bg = $region.find(".annotation_region");		
 			$region.data("annotation", annotation);
-			$region_bg.resizable({containment: "#video_player", resize: function() { return function(event, ui) {annotation_region_onresize.apply(that, [event, ui])} } ()});
+			$region_bg.resizable({containment: "#player_overlay", resize: function() { return function(event, ui) {annotation_region_onresize.apply(that, [event, ui])} } ()});
 		
 			$region_bg.data("first_region_click",{x:0, y:0});
 			$region_bg.data("last_region_click",{x:0, y:0});
@@ -788,9 +814,9 @@ var onPlayerStateChange;
 			$region.find(".annotation_cancel").click(annotation_cancel_onclick);
 				
 			$player_overlay.append($region);
-			$region_bg.css({width:annotation.rect.width + "px", height:annotation.rect.height + "px", color:annotation.foreground,
+			$region_bg.css({width:width + "px", height:height + "px", color:annotation.foreground,
 				backgroundColor: "rgba(" + annotation.background.r + "," + annotation.background.g + "," + annotation.background.b + "," + annotation.background.a + ")"});
-			$region.css({top:annotation.rect.top + "px", left:annotation.rect.left + "px"});
+			$region.css({top:top + "px", left:left + "px"});
 			$(this).data("region",$region);
 
 			//remove the annotation marks on the timeline bar, also remove the annotation from the video clip so that a seek does not bring up another copy of this annotation
@@ -798,12 +824,14 @@ var onPlayerStateChange;
 			video_doc.videos[annotation.video_index].annotations = video_doc.videos[annotation.video_index].annotations.slice(0, annotation.index).concat(video_doc.videos[annotation.video_index].annotations.slice(annotation.index + 1));
 			return false;
 		};
-		$annotation.click(function() {
-			$annotation.bind("mousedown.doubleclick", function() { return function(event) { annotation_double_click.apply(that, [event]) }; }());
-			setTimeout(function(){$annotation.unbind("mousedown.doubleclick", annotation_double_click)}, 600);
-			return false;
-		});
 
+		if(this.data("controls_displayed")) {
+			$annotation.click(function() {
+				$annotation.bind("mousedown.doubleclick", function() { return function(event) { annotation_double_click.apply(that, [event]) }; }());
+				setTimeout(function(){$annotation.unbind("mousedown.doubleclick", annotation_double_click)}, 600);
+				return false;
+			});
+		}
 		return $annotation;
 	};	
 	var region_mousemove = function(event) {
@@ -904,7 +932,6 @@ var onPlayerStateChange;
 	};
 
 	var mouseup_unbind = function() {
-		console.log("Plugin mouseup");
 		$(this).unbind("mousemove.myEvents");
 	};
 	var annotation_region_onresize = function(event, ui) {
@@ -962,6 +989,7 @@ var onPlayerStateChange;
 		};
 		onYouTubePlayerReady = function(playerId) {
 			player = document.getElementById("youtube_player");
+			that.data("yt_player", player);
 			if(that.player_type == "qt") {
 				$(player).css("visibility", "hidden");
 			}
@@ -1027,7 +1055,7 @@ var onPlayerStateChange;
 
 		$("#vid").css({width:"200px"});
 		$("head").append("<style>" + 
-				"#vsr_addvideo_sidebar {width:400px; height:96%; position:fixed; top:2%; left:-400px;  background-color:rgba(200,200,200,0.9); z-index:5; }" +
+				"#vsr_addvideo_sidebar {width:370px; height:96%; position:fixed; top:2%; left:-370px;  background-color:rgba(200,200,200,0.9); z-index:10; }" +
 				"div span#add_video_handle {position: absolute; left:100%; top:5%; height:50px; width:20px; background-color:rgba(100,100,100,1)}" + 
 				"div span#add_video_handle:hover {background-color:rgba(150,150,150,1)}" +
 				"#add_video_panel {width:380px;}" + 
@@ -1100,16 +1128,17 @@ var onPlayerStateChange;
 		this.data("player_width", option.player_width);
 		this.data("player_height", option.player_height);
 		this.data("video_timer", video_timer);
+		this.data("controls_displayed", true);
 		var $left_handle = $("div span#add_video_handle");
 		var $left_sidebar = $("#vsr_addvideo_sidebar");
 		var px_regex = /(-*\d+)px/;
 		$left_handle.click(function() {
 			var left = parseInt($left_sidebar.css("left").match(px_regex)[1]);
 			console.log(left);
-			if(left == -400)
+			if(left == -370)
 			    $left_sidebar.animate({left:"10px"},500);
 			else
-			    $left_sidebar.animate({left:"-400px"},500);
+			    $left_sidebar.animate({left:"-370px"},500);
 		});
 
 		var $search_button = $("#search_button");
@@ -1139,11 +1168,11 @@ var onPlayerStateChange;
 								"<p class='video_channel'>Channel: " + e.snippet.channelTitle+ "</p> " + 
 								"<p class='video_date'>Published: " + e.snippet.publishedAt + "</p>" + 
 								"<p class='video_description'>" + e.snippet.description + "</p>" + 
-								"<div><button class='preview_button'>Preview</button> <button class='add_button'>Add</button></div>" +
+								"<button class='add_button'>Add</button></div>" +
 							"</div>");
 						$search_results.append($result_item);
 						$result_item.find("button.add_button").click(function() {
-							addVideoById(e.id.videoId);
+							methods.addVideoById.call(that, e.id.videoId);
 						});
 					});
 				}
@@ -1200,6 +1229,7 @@ var onPlayerStateChange;
 		};
 
 		var video_doc = this.data("video_doc");
+		
 		var $player_wrapper = $("div#player_wrapper");
 		$player_wrapper.find("#YTplayerHolder").css("visibility","hidden");
 		//$player_wrapper.find("#youtube_player").css({visibility:"hidden" , position: "absolute"});
@@ -1214,76 +1244,10 @@ var onPlayerStateChange;
 		$annotation.remove();
 		console.log($annotation.data("annotation")); // This should be undefined at this point, but $annotation still has the html content
 		//*/
-
-
-		function addVideoById(id) {
-			if(!id) return;
-			var xmlhttp=new XMLHttpRequest();
-			var videoid = id;
-			xmlhttp.onreadystatechange=function() {
-				var video_doc = that.data("video_doc");
-				if (xmlhttp.readyState==4 && xmlhttp.status==200)
-    				{
-					var response = $.parseJSON(xmlhttp.responseText);
-					//console.log(response);
-					if(response.items && response.items.length > 0) {
-    						//This means that the video is valide, now add the video to the UI
-						if($range_selector.slider("option","disabled"))
-						{
-							$range_selector.slider("enable");
-							$timeline_slider.slider("enable");
-						}
-						var regex = /PT(\d+)M(\d+)S/i;
-						var time = response.items[0].contentDetails.duration.match(regex);
-						var dur = (parseInt(time[1]) * 60 + parseInt(time[2]));
-						video_doc.AddVideo(new VideoClip({vid:videoid, start:0.0, duration:dur, video_length:dur, source:"youtube"}));
-						var vid_thumbnail_url = response.items[0].snippet.thumbnails['default'].url;
-						var new_li = $("<li><div class='video-icon'><img src='" + vid_thumbnail_url + "' alt='Video " + video_doc.videos.length +"'/></div></li>");
-						that.find("div#timeline_pane div#timeline_scroll_content ul")
-							.append(new_li);
-						var new_img = new_li.find("img");
-						new_img.data("videoclip", video_doc.videos[video_doc.videos.length - 1]);
-						new_img.click((function(){return function(event) {video_icon_clicked.call(that,event)} })());
-						new_img.data("video_doc",video_doc);
-						new_img.data("player",player);
-						that.data("timeline_slider").slider("option","max", video_doc.duration);
-						if(video_doc.videos.length == 1)
-						{
-							video_doc.videos[0].isCurrent = true;
-							player.loadVideoById({videoId:videoid, startSeconds:0});
-							that.pauseVideo();
-							$range_selector.slider("option",{max:dur, values:[0, dur]});
-						}
-						$timeline_slider.find(".annotation_bar").remove();
-						$timeline_slider.find(".annotation_end").remove();
-						$timeline_slider.find(".video_timeline_bar").remove();
-						$timeline_slider.find(".annotation_span").remove();
-
-						for(var v = 0; v < video_doc.videos.length; v ++)
-						{
-							render_timeline_marks.apply(that,[v]);
-						}
-						//redraw the video span on the timeline slider
-						var width =(video_doc.videos[video_doc.current].duration / video_doc.duration * 100.0).toFixed(2) + "%";
-						var $vid_span = $timeline_slider.find(".video_timeline_span");
-						$vid_span.css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
-					}
-					else {
-						//TODO: show some pop up containing a message saying that the video id is not a valid one
-					}
-				}
-				else if (xmlhttp.readyState==4 && xmlhttp.status!=200)
-    				{
-    					//TODO: show some pop up containing a message saying that the video id is notvideo_doc.current a valid one
-				} 
-			};
-			xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=contentDetails,snippet&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
-			xmlhttp.send();
-		}
 		var add_video_button_click = function () {
 			if(!player)
 				return;
-			addVideoById(document.getElementById('vid').value);
+			methods.addVideoById.call(that, document.getElementById('vid').value);
 		};
 
 		var $range_selector = $("#splicer_range_selector");
@@ -1698,7 +1662,7 @@ var onPlayerStateChange;
 			$player_overlay.unbind("mouseup", player_overlay_mouseup);
 			
 			if($(this).data("region")) {
-				$(this).data("region").find(".annotation_region").resizable({containment: "#video_player", resize: function() { return function(event, ui) {annotation_region_onresize.apply(that, [event, ui])} } ()});
+				$(this).data("region").find(".annotation_region").resizable({containment: "#player_overlay", resize: function() { return function(event, ui) {annotation_region_onresize.apply(that, [event, ui])} } ()});
 				//console.log($player_overlay);
 				$player_overlay.css("cursor","default");
 				$player_overlay.unbind("mousedown", player_overlay_mousedown);
@@ -1742,42 +1706,198 @@ var onPlayerStateChange;
         			"margin-left": -handleSize / 2
      		 	});
 		};
+		this.data("controls", []);
+		this.data("controls").push( {element: $timeline_scrollbar, display:$timeline_scrollbar.css("display")} );
+		this.data("controls").push( {element: $timeline_scroll_pane, display: $timeline_scroll_pane.css("display")} );
+		this.data("controls").push( {element: $left_sidebar, display: $left_sidebar.css("display")} );
+		this.data("controls").push( {element: $range_selector, display: $range_selector.css("display")} );
+		this.data("controls").push( {element: $timeline_slider, display: $timeline_slider.css("display")} );
+		this.data("controls").push( {element: $("#vid_input"), display: $("#vid_input").css("display")} );
+		this.data("controls").push( {element: $("#annotate_button"), display: $("#annotate_button").css("display")} );
+		this.data("controls").push( {element: $("#play_button"), display: $("#play_button").css("display")} );
+		this.data("controls").push( {element: $("#stop_button"), display: $("#stop_button").css("display")} );
 
 		return this;
 	    },//End of init,
+
+	    Seek: function (time) {
+		var that = this;
+		var video_doc = that.data("video_doc");
+		var old_curr = video_doc.current;
+		//console.log("old current is " + old_curr);
+		var $timeline_slider = this.data("timeline_slider");
+		var player = this.data("yt_player");
+		if(video_doc.Reposition(time)) 
+		{
+			console.log("Current changed to " + video_doc.current + " after repositioning");
+			var $video_icons = that.find(".video-icon");
+			$($video_icons[video_doc.current]).addClass("current-video");
+			$($video_icons[old_curr]).removeClass("current-video");
+			console.log(that.player_type);
+			if(that.player_type == "youtube" && video_doc.videos[video_doc.current].source == "qt")
+			{
+				console.log("Making qt player visible");
+				if(!document.qt_player || !document.qt_player.SetURL) {
+					console.error("quick time player not loaded, should do this in loadVideos or addVideo");
+				}
+				that.player_type = "qt";
+				player.pauseVideo();
+				$(document.qt_player).css("visibility", "visible");
+				document.qt_player.SetControllerVisible(false);
+				$(player).css("visibility", "hidden");
+			}
+			else if(that.player_type == "qt" && video_doc.videos[video_doc.current].source == "youtube")
+			{
+				that.player_type = "youtube";
+				document.qt_player.Stop();
+				$(document.qt_player).css("visibility", "hidden");
+				$(player).css("visibility", "visible");
+			}
+		
+			var start_at = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
+			if(that.player_type == "youtube")
+				player.cueVideoById( {videoId:video_doc.videos[video_doc.current].vid,
+					startSeconds:start_at});
+			else {
+				console.log(video_doc.videos[video_doc.current]);
+				document.qt_player.SetURL(video_doc.videos[video_doc.current].video_url);
+				that.seekCurrentVideo(start_at);
+			}				
+			var duration = video_doc.videos[video_doc.current].video_length;
+		   	var left = video_doc.videos[video_doc.current].start; 
+		    	var right = video_doc.videos[video_doc.current].start + video_doc.videos[video_doc.current].duration;
+		    	//console.log("New range: from " + left + " to " + right);
+			this.data("range_selector").slider("option",{max: duration, values: [left,right]});
+		}
+		var video_pos = video_doc.videos[video_doc.current].start + video_doc.position - video_doc.videos[video_doc.current].position;
+		that.seekCurrentVideo(video_pos);
+		that.pauseVideo();
+		// annotations, the Reposition function should take care of the annotations array of the video_doc
+		for(var i = 0; i < video_doc.annotations_shown.length; i++)
+			video_doc.annotations_shown[i].remove();
+		video_doc.annotations_shown = [];
+		
+		for(var i = 0; i < video_doc.videos[video_doc.current].annotations.length; i++)
+		{
+			video_doc.videos[video_doc.current].annotations[i].displayed = false;
+		}
+		check_annotations.call(that,video_pos);
+		$timeline_slider.find(".video_timeline_span").css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
+		$timeline_slider.slider('option','value',time);
+	    },
+
 	    getDurationOfVideoThroughXmlHttpRequest: function(vid, duration_property){
 		if(!vid.length || vid == "")
 			return null;
-		var xmlhttp=new XMLHttpRequest();
-		var videoid = document.getElementById('vid').value;
+		var url = "https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=contentDetails&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8";
+		if(window.XDomainRequest) {
+			var xdr = new XDomainRequest();
+			xdr.onload = function() {
+				console.log($.parseJSON(xdr.responseText));
+			};
+			xdr.open("GET", url);
+			xdr.send();
+		}
+		else {
+		
+			var xmlhttp=new XMLHttpRequest();
+			var videoid = document.getElementById('vid').value;
 
-		xmlhttp.onreadystatechange=function() {
-			if (xmlhttp.readyState==4 && xmlhttp.status==200)
-    			{
-				var response = $.parseJSON(xmlhttp.responseText);
-				if(response.items && response.items.length > 0) {
-					var regex = /PT(\d+)M(\d+)S/i;
-					var time = response.items[0].contentDetails.duration.match(regex);
-					duration_property = (parseInt(time[1]) * 60 + parseInt(time[2]));
+			xmlhttp.onreadystatechange=function() {
+				if (xmlhttp.readyState==4 && xmlhttp.status==200)
+    				{
+					var response = $.parseJSON(xmlhttp.responseText);
+					if(response.items && response.items.length > 0) {
+						var regex = /PT(\d+)M(\d+)S/i;
+						var time = response.items[0].contentDetails.duration.match(regex);
+						duration_property = (parseInt(time[1]) * 60 + parseInt(time[2]));
+						return;
+					}
+					else {
+						//TODO: show error
+						duration_property = null;
+						return
+					}
+				}
+				else if (xmlhttp.readyState==4 && xmlhttp.status!=200)
+    				{
+					//TODO: show error
+    					duration_property = null;
 					return;
 				}
+			}
+			xmlhttp.open("GET",url,true);
+			xmlhttp.send();
+		}
+	    },
+	    addVideoById : function(id) {
+		if(!id) return;
+		var xmlhttp=new XMLHttpRequest();
+		var videoid = id;
+		var $timeline_slider = this.data("timeline_slider");
+		var video_doc = this.data("video_doc");
+		var that = this;
+		xmlhttp.onreadystatechange=function() {
+			var video_doc = that.data("video_doc");
+			if (xmlhttp.readyState==4 && xmlhttp.status==200)
+    			{
+			var response = $.parseJSON(xmlhttp.responseText);
+			//console.log(response);
+			if(response.items && response.items.length > 0) {
+    				//This means that the video is valide, now add the video to the UI
+				if(that.data("range_selector").slider("option","disabled"))
+				{
+					that.data("range_selector").slider("enable");
+					$timeline_slider.slider("enable");
+				}
+				var regex = /PT(\d+)M(\d+)S/i;
+				var time = response.items[0].contentDetails.duration.match(regex);
+				var dur = (parseInt(time[1]) * 60 + parseInt(time[2]));
+				video_doc.AddVideo(new VideoClip({vid:videoid, start:0.0, duration:dur, video_length:dur, source:"youtube"}));
+				var vid_thumbnail_url = response.items[0].snippet.thumbnails['default'].url;
+				var new_li = $("<li><div class='video-icon'><img src='" + vid_thumbnail_url + "' alt='Video " + video_doc.videos.length +"'/></div></li>");
+				that.find("div#timeline_pane div#timeline_scroll_content ul")
+					.append(new_li);
+				var new_img = new_li.find("img");
+				new_img.data("videoclip", video_doc.videos[video_doc.videos.length - 1]);
+				new_img.click((function(){return function(event) {video_icon_clicked.call(that,event)} })());
+				new_img.data("video_doc",video_doc);
+				new_img.data("player",that.data("yt_player"));
+				that.data("timeline_slider").slider("option","max", video_doc.duration);
+				if(video_doc.videos.length == 1)
+				{
+					video_doc.videos[0].isCurrent = true;
+					player.loadVideoById({videoId:videoid, startSeconds:0});
+					that.pauseVideo();
+					$range_selector.slider("option",{max:dur, values:[0, dur]});
+				}
+				$timeline_slider.find(".annotation_bar").remove();
+				$timeline_slider.find(".annotation_end").remove();
+				$timeline_slider.find(".video_timeline_bar").remove();
+				$timeline_slider.find(".annotation_span").remove();
+
+				for(var v = 0; v < video_doc.videos.length; v ++)
+				{
+					render_timeline_marks.apply(that,[v]);
+				}
+				//redraw the video span on the timeline slider
+				var width =(video_doc.videos[video_doc.current].duration / video_doc.duration * 100.0).toFixed(2) + "%";
+				var $vid_span = $timeline_slider.find(".video_timeline_span");
+			 		$vid_span.css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
+				}
 				else {
-					//TODO: show error
-					duration_property = null;
-					return
+					//TODO: show some pop up containing a message saying that the video id is not a valid one
 				}
 			}
 			else if (xmlhttp.readyState==4 && xmlhttp.status!=200)
     			{
-				//TODO: show error
-    				duration_property = null;
-				return;
-			}
-		}
-		xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=contentDetails&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
+    				//TODO: show some pop up containing a message saying that the video id is notvideo_doc.current a valid one
+			} 
+		};
+		xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=contentDetails,snippet&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
 		xmlhttp.send();
-
 	    },
+
 	    loadVideos: function(videoDocObj) {
 		console.log("loadVideos called");
 		if(! (videoDocObj instanceof CompositeVideo)) return this;
@@ -1872,12 +1992,13 @@ var onPlayerStateChange;
 					if(yt_placeholder.length == 0) {
 						//Player is ready
 						$(document.youtube_player).after(qt_player_text);
-						$(document.youtube_player).css("visibility", "hidden");
+						$(document.qt_player).css("visibility", "hidden");
 				   	 }
 				    	else {
 						$(yt_placeholder).after(qt_player_text);
 				    	}
 				}
+				$(document.qt_player).css("visibility", "hidden");
 				if(index == 0) that.player_type = "qt";
 				document.qt_player.addEventListener("qt_loadedmetadata", function() {
 					if(index == 0) {
@@ -1913,6 +2034,90 @@ var onPlayerStateChange;
 	    },
 	    onPlayerReady:function(callback) {
 		this.playerReadyFuncs.push(callback);
+	    },
+	    play: function() {
+		var video_doc = this.data("video_doc");
+		if(video_doc.videos.length == 0)
+			return;	
+		var video_timer = this.data("video_timer");
+		if(!video_doc.isPlaying)
+		{//Play
+			video_doc.isPlaying = true;
+			video_timer = setInterval((function(videosplicer){ return function() {tick.call(videosplicer)};}) (this) ,100);
+			this.playVideo();
+			this.data("play_button").find("#play_svg").css("display","none").end().find("#pause_svg").css("display","inline");
+		}		
+	    },
+
+	    Play: function() {  methods.play.call(this); },
+
+	    pause: function() {
+		var video_doc = this.data("video_doc");
+		if(video_doc.videos.length == 0)
+			return;	
+		video_doc.isPlaying = false;
+		var video_timer = this.data("video_timer");
+		if(video_timer) 
+		{
+			clearInterval(video_timer);
+			video_timer = null;
+		}
+		this.pauseVideo();
+		this.data("play_button").find("#play_svg").css("display","inline").end().find("#pause_svg").css("display","none");
+		return;
+	    },
+
+	    Pause: function() { methods.pause.call(this); },
+
+	    stop: function() {
+		methods.pause.call(this);
+		methods.Seek.call(this, 0);
+	    },
+
+	    Stop: function() { methods,stop.call(this); },
+
+	    next: function() {
+		var video_doc = this.data("video_doc");
+		console.log(video_doc);
+		switch_to_next_video.call(this, video_doc);
+	    },
+	    
+	    showControls: function() {
+		this.data("controls").forEach(function(elem, index, arr){
+			elem.element.css("display", elem.display);
+		});
+		this.find("#video_container").css("position", "static");
+		document.youtube_player.height = this.data("player_height");
+		document.youtube_player.width = this.data("player_width");
+		this.data("controls_displayed", true);
+		this.find("#player_overlay").css({width: this.data("player_width"), height: this.data("player_height")});
+		
+
+		var video_doc = this.data("video_doc");
+		video_doc.videos[video_doc.current].annotations.forEach(function(e, index, arr){e.displayed = false});
+		video_doc.annotations_shown.forEach(function(e, index, arr){e.remove()});
+		video_doc.annotations_shown = [];
+		var player_time = this.getPlayerTime();
+		check_annotations.call(this, player_time);
+	    },
+
+	    hideControls: function() {
+		this.data("controls").forEach(function(elem, index, arr){
+			elem.element.css("display", "none");
+		});
+		this.find("#video_container").css({position: "absolute", left:"0px", top:"0px"});
+		document.youtube_player.height = document.height;
+		document.youtube_player.width = document.width;
+		this.find("#player_overlay").css({width: document.width, height: document.height});
+		this.data("controls_displayed", false);
+		
+		//Redraw the annotations
+		var video_doc = this.data("video_doc");
+		video_doc.videos[video_doc.current].annotations.forEach(function(e, index, arr){e.displayed = false});
+		video_doc.annotations_shown.forEach(function(e, index, arr){e.remove()});
+		video_doc.annotations_shown = [];
+		var player_time = this.getPlayerTime();
+		check_annotations.call(this, player_time);
 	    }
 	};		
 	$.fn.videosplicer = function(method) {

@@ -1,5 +1,7 @@
+var $splicer;
+
 $(document).ready(function(){
-	var $splicer = $('#videosplicing_div').videosplicer();
+	$splicer = $('#videosplicing_div').videosplicer();
 	var spliced_videos = new CompositeVideo();
 
 	// The order of the video clips passes in must be ordered as of this version
@@ -15,3 +17,89 @@ $(document).ready(function(){
 	//$splicer.videosplicer( "onPlayerReady", function() {  } );
 	$splicer.videosplicer("loadVideos",spliced_videos);
 });
+
+function AddVideo(param) {
+	if(!$splicer)
+		return;
+	if(typeof param != "string")
+		return;
+	var video_id = null;
+	if(param.length=="11") {
+		//If param is a youtube video id
+		video_id = param;
+	}
+	else {
+		//if param is a youtube url, extract the id part
+		var url_pattern = /[&?]v=(\w{11,11})/;
+		var res = param.match(url_pattern);
+		if (!res)
+			return;
+		video_id = res[1];
+	}
+	//Add video_id's corresponding video
+	$splicer.videosplicer("addVideoById",video_id);
+}
+
+function getVideoLength() {
+	if($splicer)
+		return $splicer.data('video_doc').duration;
+}
+
+function setVideoPosition(position) {
+	//Set the video's playing position 
+	if($splicer)
+		$splicer.videosplicer("Seek", position);
+}
+
+function getVideoPosition() {
+	//return the video's playing position in seconds
+	if($splicer)
+		return $splicer.data("video_doc").position;
+}
+
+function Play() {
+	if($splicer)
+		$splicer.videosplicer("play");
+}
+
+function Pause() {
+	if($splicer)
+		$splicer.videosplicer("pause");
+}
+
+function Stop() {
+	if($splicer)
+		$splicer.videosplicer("stop");
+}
+
+function Next() {
+	//Skip to the next video
+	if($splicer)
+		$splicer.videosplicer("next");
+}
+
+function getVideoSplicerState() {
+	//Return a json string of the video_doc
+	if($splicer)
+		return JSON.stringify($splicer.data("video_doc"));
+}
+
+function setVideoSplicerState(state) {
+	//TODO: Set the video_doc to state, reinitialize the splicer
+}
+
+function ShowControls() {
+	if($splicer)
+		$splicer.videosplicer("showControls");
+}
+
+function HideControls() {
+	if($splicer)
+		$splicer.videosplicer("hideControls");
+}
+
+function GetDimension() {
+
+}
+
+
