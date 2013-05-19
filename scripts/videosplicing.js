@@ -1,6 +1,20 @@
-
-//TODO: UI to delete a video
-
+/**
+ * Author: Charles Zhang
+ * Email: charles.chuckles1990@gmail.com
+ * Date: May 17, 2013
+ * The splicer acts like a jQuery plugin. It exports functions accessable through the form $.videosplicer("function_name", params)
+ * The functions exported are: 
+ *	Pause() : pausing the playback
+ * 	Play() : start the playback from the previous playback position or the beginning if it just loaded
+ * 	Seek(time) : seek to a time position of the composite video, time is in seconds
+ * 	Stop() : Stop the playback and position the head to the beginning of the first videoclip
+ * 	addVideoById(id): Add a youtube video by the 11 character long id
+ * 	hideControls() : Hide all controls and switch to full screen
+ * 	showControls() : return to edit mode from full screen mode and show all the controls
+ * 	loadVideos(CompositeVideo): loads all videos represented in the CompositeVideo object. The CompositeVideo class is defined a couple lines after this 
+ * 	next() : change playback to the next video
+ * 	
+ */
 function Link(source_doc, target_doc) {
 	this.source_doc = source_doc;
 	this.target_doc = target_doc;
@@ -108,8 +122,7 @@ CompositeVideo.prototype.AddVideo = function(arg)
 
 CompositeVideo.prototype.RemoveVideoAt = function(vid_index)
 {
-	//TODO: Remove the video at index vid_index
-	// calculate for the videos that come after the deleted video the start and end position for the videos and annotations
+	//The code for removing a videoclip is in the event handler function of $delete_icon.click
 }
 
 CompositeVideo.prototype.UpdateCurrentVideo = function(start, duration) 
@@ -166,10 +179,9 @@ CompositeVideo.prototype.copy = function(video_doc) {
 }
 
 /**
- * TODO: This function generates and returns an array containing all the video links, used for exporting links
+ * This function generates and returns an array containing all the video links, used for exporting links
  */
 CompositeVideo.prototype.getLinks = function() {
-	//TODO 
 }
 
 function VideoAnnotation(a) {
@@ -198,7 +210,7 @@ function VideoAnnotation(a) {
 }
 
 
-// These two functions are needed by the youtube player and they need to be globally available, but they also need access to the plugin's data, so their definition come later inside of the plugin's difiniton
+// These two functions are needed by the youtube player and they need to be globally available, but they also need access to the plugin's data, so their definition come later inside of the plugin's definiton
 var onYouTubePlayerReady;
 var onPlayerStateChange;
 
@@ -241,6 +253,7 @@ var onPlayerStateChange;
 	};
 
 	var annotation_end_nudge = function(delta, $circle) {
+		// Change the end position and the duration of the annotation given the delta
 		var video_doc = this.data("video_doc");
 		var video_clip = video_doc.videos[$circle.data("indices").video_ind];
 		var i = $circle.data("indices").annotation_ind;
@@ -271,7 +284,9 @@ var onPlayerStateChange;
 	};
 
 	var render_annotation_marks = function(annotation, i, index) {
+		// Annotation marks are the marks in the slider that indicates the time when there is an annotation and how long that annotation will show up
 		var $group = $("<span class='annotation_group'></span>");
+		//Setting an element's tabindex to 0 will allow it to skip tab nagivation focus but receive mouse button focus
 		var $bar = $("<span class='annotation_bar' tabindex='0'></span>");
 		$bar.data("indices",{video_ind:index, annotation_ind:i});
 		this.data("timeline_slider").append($group);
@@ -1117,7 +1132,7 @@ var onPlayerStateChange;
 				".playback-button svg polygon{fill:black;}" + 
 				"#timeline_scroll_content{width: 2440px; float: left; height: 110px}" + 
 				"#timeline_scroll_content ul {list-style-type: none; margin-top:auto; margin-bottom:auto; padding:0; position:relative;}" + 
-				"#timeline_scroll_content ul li{display:inline; float: left;}" + 
+				"#timeline_scroll_content ul li{display:inline; float: left; position:relative; width:130px; height:90px;}" + 
 				"#timeline_scroll_content ul li div.video-icon-ghost{width:114px; height:84px; border-style:solid; border-color:yellow; border-width:3px; margin:10px 6px;}" + 
 				"#timeline_pane ul li .video-icon{cursor: pointer;}" + 
 				"div#timeline div#timeline_pane div#timeline_scrollcontent div{ float: left;}" + 
@@ -1152,6 +1167,7 @@ var onPlayerStateChange;
 				".video_timeline_span {background-color: orange; height:20%; position:absolute; top:40%}" +
 				"#timeline #timeline_pane .video-icon img {width:120px; height:90px;}" + 
 				"p.annotation-editable{margin:0; width:100%;letter-spacing:1px;}" + 
+				"div.delete_video_icon {margin:0; padding:0; width:20px; height:20px; background-image:url('css/ui-lightness/images/delete_icon.png'); position:absolute; background-size: 100%; right:0px; visibility:hidden;}" + 
 				"#timeline li.timeline-sortable-highlight {border: 2px solid #fcefa1;width: 116px; height: 90px; margin: 4px 6px;background: #fbf9ee; padding:0;}" +
 				"</style>");
 	    	var params = { allowScriptAccess: "always" };
@@ -1335,8 +1351,6 @@ var onPlayerStateChange;
 				else {
 					console.log(video_doc.videos[video_doc.current]);
 					document.qt_player.SetURL(video_doc.videos[video_doc.current].video_url);
-					//TODO: add event listener for seeking after loading, try setting the start time of the video SetStartTime() to two seconds earlier 
-					// and see if that will fix the keyframe not loaded problem
 					that.seekCurrentVideo(start_at);
 				}				
 				var duration = video_doc.videos[video_doc.current].video_length;
@@ -1742,7 +1756,6 @@ var onPlayerStateChange;
 
 		function video_icon_mousewait(e) {
 			
-			e.preventDefault();
 			var $li = findFirstParentByTagname(e.target, "LI");
 			
 			var first_mousedown = $li.data("first_mouse_position");
@@ -1770,8 +1783,8 @@ var onPlayerStateChange;
 				$li = findFirstParentByTagname(e.target, "LI");
 			$li.unbind("mousemove");
 			$li.find("img").unbind("mouseup");
-			$li.css("z-index", "auto");
-			$li.css("position", "static");
+			$li.css("z-index", "");
+			$li.css("position", "relative");
 			$li.css("left", "auto");
 			if($li.data("ghost") && ( typeof ($li.data("ghost") )) != "undefined" && (typeof ($li.data("ghost").prev) ) != "undefined") {
 				var $ghost = $li.data("ghost");
@@ -1790,6 +1803,7 @@ var onPlayerStateChange;
 			
 			
 			var $ul = findFirstParentByTagname($li, "UL");
+
 	    		//rearrange the order of the video clips
 			var video_doc = that.data("video_doc");
 			if(video_doc.videos.length == 1) return;
@@ -1833,6 +1847,7 @@ var onPlayerStateChange;
 		$timeline_scroll_content.bind("DOMNodeInserted", function(e) { 
 			//console.log("new video icon added");
 			var $li = $(e.target);
+			var $ul = findFirstParentByTagname($li, "UL");
 			if($li.prop("tagName") != "LI") {
 				// In IE, 
 				//console.log("warning: New element added to a ul as a direct child but it is not a li");
@@ -1849,7 +1864,156 @@ var onPlayerStateChange;
 			$li.mouseup(function() {
 				//Since there could only be one element being dragged, the array should contain at most one element, so here we could just clear it
 				that.data("list_unbind_mousemove", []);
-				$li.unbind("mousemove");
+				$li.unbind("mousemove",video_icon_mousewait);
+				$li.unbind("mousemove", video_icon_mousemove)
+			});
+
+			var $delete_icon = $li.find("div.delete_video_icon");
+			$delete_icon.click(function() {
+				console.log("clicked on delete icon");
+				//delete the corresponding video
+				var videoclip = $li.find("img").data("videoclip");
+				var video_doc = that.data("video_doc");
+				console.log($li.find("img").data("videoclip"));
+				
+				video_doc.videos = video_doc.videos.slice(0, videoclip.index).concat(video_doc.videos.slice(videoclip.index + 1));
+				
+				// reposition the timeline slider handle
+				$timeline_slider.slider("option","value", position);
+				$timeline_slider.find(".annotation_group").remove();
+				$timeline_slider.find(".video_timeline_bar").remove();
+
+				if(video_doc.videos.length == 0) {
+					video_doc.position = 0;
+					video_doc.current = 0;
+					return;
+				}
+
+				var position, position_counter; // The playback position of the composite video marking the start of the videoclip
+				if(videoclip.index == 0)
+					position = 0;
+				else if(videoclip.index != video_doc.videos.length)
+					position = videoclip.position;
+
+				for(var i = videoclip.index; i < video_doc.videos.length; i++) {
+					if(i != video_doc.videos[i].index - 1) {
+						console.err("index value is not what is expected");
+					}
+					//assert(i == video_doc.videos[i].index - 1 , "Checking the value of index for videoclips that come after the videoclip being deleted");
+					video_doc.videos[i].index = i;
+					video_doc.videos[i].position = position;
+					position += video_doc.videos[i].duration;
+				}
+				$li.remove();
+				if(videoclip.isCurrent) {
+					//If the video deleted is the current one, then set the current to be the fist of the videos
+					video_doc.videos[0].isCurrent = true;
+					video_doc.current = 0;
+					video_doc.position = 0;
+					var left = video_doc.videos[0].start; 
+		    			var right = video_doc.videos[0].start + video_doc.videos[0].duration;
+					that.data("range_selector").slider("option",{max: video_doc.videos[0].video_length, values: [left,right]});
+
+					//Remove annotations and check if the first video has any annotations to show
+					for(var i = 0; i < video_doc.annotations_shown.length; i++)
+						video_doc.annotations_shown[i].remove();
+
+					check_annotations.call(that, 0);
+
+					video_doc.annotations_shown = [];
+					// Mark the current video icon with the orange border
+					console.log($ul.find(".video-icon"));
+					$($ul.find(".video-icon")[0]).addClass("current-video");
+					//change the video in the player to the first video
+					if(that.player_type == "youtube") {
+						if(video_doc.videos[0].source == "youtube")
+							player.cueVideoById( {videoId:video_doc.videos[0].vid, startSeconds:video_doc.videos[0].start});
+						else {
+							that.player_type = "qt";
+							player.pauseVideo();
+							$(document.qt_player).css("visibility", "visible");
+							document.qt_player.SetControllerVisible(false);
+							$(player).css("visibility", "hidden");
+
+							if(document.qt_player.GetURL() != video_doc.videos[0].video_url) {
+								document.qt_player.SetURL(video_doc.videos[0].video_url);
+								document.qt_player.addEventListener("qt_loadedmetadata", function() {
+									document.qt_player.removeEventListener("qt_loadedmeatadata", arguments.callee);
+									document.qt_player.SetTime(video_doc.videos[0].start * 1000.0);
+									document.qt_player.Play();
+									if(!video_doc.isPlaying)
+										setTimeout(function() { if(!video_doc.isPlaying) document.qt_player.Stop(); }, QT_SEEK_TIMEOUT);
+								});
+							}
+							else {
+								document.qt_player.SetTime(video_doc.videos[0].start * 1000.0);
+								document.qt_player.Play();
+								if(!video_doc.isPlaying)
+									setTimeout(function() { if(!video_doc.isPlaying) document.qt_player.Stop(); }, QT_SEEK_TIMEOUT);
+							}
+						}
+					}
+					else {
+						if(video_doc.videos[0].source == "youtube") {
+							//hide qt player and show youtube player, and load the first youtueb video
+							that.player_type = "youtube";
+							document.qt_player.Stop();
+							$(document.qt_player).css("visibility", "hidden");
+							$(player).css("visibility", "visible");
+							player.cueVideoById( {videoId:video_doc.videos[0].vid, startSeconds:video_doc.videos[0].start});
+						}
+						else {
+							//load the first qt video 
+							if(document.qt_player.GetURL() != video_doc.videos[0].video_url) {
+								document.qt_player.SetURL(video_doc.videos[0].video_url);
+								document.qt_player.addEventListener("qt_loadedmetadata", function() {
+									document.qt_player.removeEventListener("qt_loadedmeatadata", arguments.callee);
+									document.qt_player.SetTime(video_doc.videos[0].start * 1000.0);
+									document.qt_player.Play();
+									if(!video_doc.isPlaying)
+										setTimeout(function() { if(!video_doc.isPlaying) document.qt_player.Stop(); }, QT_SEEK_TIMEOUT);
+								});
+							}
+							else {
+								document.qt_player.SetTime(video_doc.videos[0].start * 1000.0);
+								document.qt_player.Play();
+								if(!video_doc.isPlaying)
+									setTimeout(function() { if(!video_doc.isPlaying) document.qt_player.Stop(); }, QT_SEEK_TIMEOUT);
+							}
+						}
+					}
+				}
+				else if(video_doc.position >= videoclip.position + videoclip.duration) {
+					// fix the playing position of the video doc if the deleted video is before the playing position
+					video_doc.position -= videoclip.duration;
+					video_doc.current--;
+				}
+				video_doc.duration -= videoclip.duration;
+
+				//fix the markings
+				for(var v = 0; v < video_doc.videos.length; v ++)
+				{
+					render_timeline_marks.apply(that,[v]);
+				}
+				//redraw the video span on the timeline slider
+				that.data("timeline_slider").slider("option","max", video_doc.duration);
+				var $vid_span = $timeline_slider.find(".video_timeline_span");
+				var width =(video_doc.videos[video_doc.current].duration / video_doc.duration * 100.0).toFixed(2) + "%";
+				$vid_span.css("left", (video_doc.videos[video_doc.current].position / video_doc.duration * 100.0).toFixed(2) + "%");
+				$vid_span.css("width", width);
+				
+			});
+			$li.unbind("mouseenter");
+			$li.unbind("mouseleave");
+			$li.mouseenter(function() {
+				console.log("icon mouse enter");
+				if(that.data("video_doc").isPlaying)
+					return;
+				$delete_icon.css("visibility","visible");
+			});
+
+			$li.mouseleave(function() {
+				$delete_icon.css("visibility", "hidden");
 			});
 		});
 
@@ -2049,12 +2213,12 @@ var onPlayerStateChange;
 			 		$vid_span.css({left: (video_doc.videos[video_doc.current].position/video_doc.duration * 100.0).toFixed(2) + "%", width: (video_doc.videos[video_doc.current].duration/video_doc.duration * 100.0).toFixed(2) + "%" });
 				}
 				else {
-					//TODO: show some pop up containing a message saying that the video id is not a valid one
+					//Could show some pop up containing a message saying that the video id is not a valid one
 				}
 			}
 			else if (xmlhttp.readyState==4 && xmlhttp.status!=200)
     			{
-    				//TODO: show some pop up containing a message saying that the video id is notvideo_doc.current a valid one
+    				//Coule show some pop up containing a message saying that the video id is notvideo_doc.current a valid one
 			} 
 		};
 		xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + videoid + "&part=contentDetails,snippet&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
@@ -2077,7 +2241,7 @@ var onPlayerStateChange;
 			
 			var $timeline_scroll_content = this.find("div#timeline_pane div#timeline_scroll_content ul");
 			for(var i = 0; i < videoDocObj.videos.length; i++) {
-				$timeline_scroll_content.append("<li><div class='video-icon'><img src='' alt='Video " + (i + 1) +"'/></div></li>");
+				$timeline_scroll_content.append("<li><div class='video-icon'><div class='delete_video_icon'> </div> <img src='' alt='Video " + (i + 1) +"'/></div></li>");
 			}
 			var vid_icon = this.find("div#timeline_pane div#timeline_scroll_content ul li");
 			$(vid_icon.find(".video-icon")[0]).addClass("current-video");
@@ -2141,11 +2305,11 @@ var onPlayerStateChange;
 							$(vid_icon_img[index]).mouseup((function(){return function(event) {video_icon_clicked.call(that,event)} })());
 						}
 						else {
-							//TODO: response returned an empty array, video is not available, show error message 
+							// response returned an empty array, video is not available, we could show an error message 
 						}
 					}
 					else if (xmlhttp.readyState == 4){
-						//TODO: request failed, show message
+						// request failed, we could show a message
 					}annotation_done_button
 				};
 				xmlhttp.open("GET","https://www.googleapis.com/youtube/v3/videos?id=" + value.vid + "&part=contentDetails,snippet&key=AIzaSyCcjD3FvHlqkmNouICxMnpmkByCI79H-E8",true);
@@ -2186,7 +2350,7 @@ var onPlayerStateChange;
 					//var size = getQTFitSize(document.qt_player,that.data("player_width"), that.data("player_height"));
 					
 					if(Math.abs(duration/1000 - value.video_length) > 1) {
-						//TODO: The video length provided to the loadVideos method is not accurate, update the slider timeline and the video_doc
+						//The video length provided to the loadVideos method is not accurate, rarely happens but if did happen should update the slider timeline and the video_doc
 					}
 			    	});
 				vid_icon_img[index].src = value.thumbnailurl;
@@ -2288,7 +2452,8 @@ var onPlayerStateChange;
 		var player_time = this.getPlayerTime();
 		check_annotations.call(this, player_time);
 	    }
-	};		
+	};	
+	console.log(methods);	
 	$.fn.videosplicer = function(method) {
 	    if(methods[method]) {
 		return methods[method].apply(this, Array.prototype.slice.call(arguments,1));

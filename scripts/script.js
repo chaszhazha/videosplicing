@@ -118,8 +118,4 @@ function HideControls() {
 		$splicer.videosplicer("hideControls");
 }
 
-function GetDimension() {
-
-}
-
 
