@@ -455,10 +455,10 @@ var onPlayerStateChange;
 	    }
 
 	    var video_icon_clicked = function(event) {
-		//TODO: check the type of the video
 		// The this keyword is the video splicer jquery object
 		var $li = $(event.delegateTarget);
 		var video_doc = $li.data("video_doc");
+		console.log(video_doc);
 		var that = this;
 		var old_curr = video_doc.current;		
 		var videoclip = $li.data("videoclip");
@@ -481,15 +481,18 @@ var onPlayerStateChange;
 				this.player_type = "qt";
 				$(document.qt_player).css("visibility", "visible");
 				$(document.youtube_player).css("visibility", "hidden");
-				if(!document.qt_player || !document.qt_player.SetURL) {
+				if(!document.qt_player || (typeof document.qt_player.SetURL) == "undefined") {
 					console.error("quick time player is null in video_icon_clicked");
+					// If it ever gets into this block, then uncomment the code below to add the quicktime player
 					//$(document.qt_player).remove();
 					//var qt_player_text = QT_GenerateOBJECTText(video_doc.videos[video_doc.current].video_url , this.data("player_width"), this.data("player_height"), '', 'postdomevents', 'True', 'EnableJavaScript', 'True', 'emb#NAME', 'qt_player', 'obj#ID', 'qt_player', 'emb#ID', 'qt_playerEMBED', 'autoplay','false');
 					//$(document.youtube_player).after(qt_player_text);
 					//console.log(document.qt_player.GetTime());
 				}
 				else {
-					if(document.qt_player.GetURL() != video_doc.videos[video_doc.current].video_url) {
+					var player_url = document.qt_player.GetURL();
+					var video_url = video_doc.videos[video_doc.current].video_url;
+					if(player_url != video_url) {
 						console.log("qt loading a different video");
 						document.qt_player.SetURL(video_doc.videos[video_doc.current].video_url);
 						//add event listener for when the video loads to seek to the start position
@@ -556,7 +559,7 @@ var onPlayerStateChange;
 
 		if(this.player_type == "youtube" && video_doc.videos[video_doc.current].source == "qt")
 		{
-			if(!document.qt_player || !document.qt_player.SetURL) {
+			if(!document.qt_player || (typeof document.qt_player.SetURL) == "undefined") {
 				console.error("quick time player not loaded, should do this in loadVideos or addVideo");
 			}
 			this.player_type = "qt";
@@ -682,6 +685,8 @@ var onPlayerStateChange;
 			var annotation = video_doc.annotations_shown[i].data("annotation");
 			if(annotation && (annotation.end < player_time || annotation.position > player_time))
 			{
+				console.log("Removed one annotation");
+				console.log(video_doc.annotations_shown[i]);
 				video_doc.annotations_shown[i].remove();
 				video_doc.annotations_shown = video_doc.annotations_shown.slice(0,i).concat(video_doc.annotations_shown.slice(i + 1));
 				annotation.displayed = false;
@@ -797,6 +802,7 @@ var onPlayerStateChange;
 		var $annotation = $("<div class = 'annotation'>" + annotation.content +"</div>");
 		var $player_overlay = this.data("player_overlay"); 
 		$player_overlay.append($annotation);
+		console.log("Added annotation: " + $player_overlay.html());
 		//console.log("content added to div#player_wrapper with width " + annotation.rect.width + "px and height " + annotation.rect.height + "px");
 		$annotation.data("annotation",annotation);
 		//console.log(annotation.opacity);
@@ -977,11 +983,17 @@ var onPlayerStateChange;
 
 	var splicer_keydown = function(e) {
 		if(e.keyCode == 32) {
-			event.preventDefault();
+			e.preventDefault();
 			//space key pressed, pause or continue the video
 			$(this).data("play_button").trigger('click');
 		}
-		console.log("Key down on video splicer");
+		else if(e.keyCode == 27) {
+			//Escape key pressed,
+			if(this.data("controls_displayed"))
+				return;
+			methods.showControls.call(this);
+		}
+		console.log("Key down on video splicer " + e.keyCode);
 	};
 	var methods = {
 	    init: function(opt) {
@@ -1067,7 +1079,7 @@ var onPlayerStateChange;
 					"<button id='stop_button' class='playback-button'><svg xmlns='http://www.w3.org/2000/svg' version='1.1'>" + 
 						"<polygon points='2,2 18,2 18,18 2,18'/>" + 
 					"</svg></button>" + 
-					"<button id='annotate_button' >Annotate</button><button id='annotation_done_button'>Done</button><button id='cancel_region_selection_button'>Cancel</button>" + 
+					"<button id='full_screen_button'>FullScreen</button> <button id='annotate_button' >Annotate</button><button id='annotation_done_button'>Done</button><button id='cancel_region_selection_button'>Cancel</button>" + 
 				"</div> " + 
 				"<div id='splicer_time_markers'><span id=''></span></div>" + 
                 		"<div id='splicer_range_selector'></div>" +
@@ -1099,7 +1111,7 @@ var onPlayerStateChange;
 				".search_result_video p.video_description{margin-top:8px;}" + 
 				".search_result_video_icon{float:left;}" +
 
-				"#youtube_player {position:absolute;}" + 
+				"#youtube_player {position:absolute; z-index:7;}" + 
 				"#video_container{margin:0 auto;  width:" + option.player_width + "px;}" + 
 				"#vid_input{margin:0 auto; width: 600px;}" + 
 				"div#timeline div#timeline_pane{ " + 
@@ -1115,15 +1127,17 @@ var onPlayerStateChange;
 				".playback-button svg{width:20px; height:20px;}" + 
 				".playback-button svg polygon{fill:black;}" + 
 				"#timeline_scroll_content{width: 2440px; float: left; height: 110px}" + 
-				"#timeline_scroll_content ul {list-style-type: none; margin-top:auto; margin-bottom:auto; padding:0;}" + 
+				"#timeline_scroll_content ul {list-style-type: none; margin-top:auto; margin-bottom:auto; padding:0; position:relative;}" + 
 				"#timeline_scroll_content ul li{display:inline; float: left;}" + 
+				"#timeline_scroll_content ul li div.video-icon-ghost{width:114px; height:84px; border-style:solid; border-color:yellow; border-width:3px; margin:10px 6px;}" + 
 				"#timeline_pane ul li .video-icon{cursor: pointer;}" + 
 				"div#timeline div#timeline_pane div#timeline_scrollcontent div{ float: left;}" + 
 				"div.video-icon{display:inline; float: left; margin: 4px 6px; border-width:5px; -webkit-border-radius: 8px; -moz-border-radius: 8px;border-radius: 8px; border-style:solid;border-color:rgba(0,0,0,0)}" + 
 				"div.current-video{border-color: #f6a828;}" +
-				"div#player_overlay {position:absolute; top:0}" + 
+				"div#player_overlay {position:absolute; top:0; z-index:8;}" + 
 				"div#player_wrapper {position: relative}" + 
 				"button#annotate_button {float:right;} " + 
+				"button#full_screen_button {float:right;}" +
 				"#annotation_done_button, #cancel_region_selection_button{display: none; float: right;}" + 
 				".annotation_wrapper{position: absolute;}" + 
 				".annotation_ok{width: 16px; height:16px; background-image:url('css/ui-lightness/images/ui-icons_ef8c08_256x240.png'); background-position:-63px -145px; background-color:#877; float:right; cursor:pointer;}" +
@@ -1131,7 +1145,8 @@ var onPlayerStateChange;
 				".annotation_ok:hover, .annotation_cancel:hover{background-color:#666;}" +
 				".annotation_ok:active{background-color:#ddd;}" +
 				".annotation_cancel:active{background-color:#333;}" +
-				".annotation { background: #444444; position:absolute;}" + 
+				//Here for the z-index of the annotation, it doesn't seem to work in IE. It works perfectly in other browsers and you can see the annotations show up, but IE is weird about the z-indexing. Tried different ways but nothing worked.
+				".annotation { background: #444444; position:absolute; z-index:9;}" + 
 				".annotation_region{border-style:dashed; border-width:2px;cursor:move;}" +  
 				".annotation, .annotation_region {white-space: pre-wrap; overflow:hidden;}" +
 				".annotation_region textarea{resize:none;}" +
@@ -1212,6 +1227,15 @@ var onPlayerStateChange;
 
 		//*************************************** Unbind the mouse move events here **********************************
 		this.mouseup( mouseup_unbind );
+		this.mouseup(function(e) {
+			if( (typeof (that.data("list_unbind_mousemove").length)) != "undefined") {
+				that.data("list_unbind_mousemove").forEach(function (elem, i, arr) {
+					elem.element.unbind("mousemove");
+					elem.callback.call(elem.element,e);
+				});
+				that.data("list_unbind_mousemove", []);
+			}
+		});
 		
 		//Define some wrapper functions to access the different players
 		this.getPlayerTime = function() {
@@ -1589,50 +1613,8 @@ var onPlayerStateChange;
 		};
 		$play_button.click(play_button_onclick);
 
-		this.bind("keydown.myEvents",splicer_keydown);
-	
-	    	var timeline_sortable_onchange = function(event, ui) {
-			//console.log("sortable change");
-	    	}
-		var timeline_sortable_onstop = function(event, ui) {
-			//event.target is the ul element
-			//console.log(event.target);
-	    		//rearrange the order of the video clips
-			var video_doc = $(event.target).data("video_doc");
-			if(video_doc.videos.length == 1) return;
-			video_doc.videos[0] = $($(event.target).find("img")[0]).data("videoclip");
-			video_doc.videos[0].position = 0;
-			var position, position_counter = video_doc.videos[0].duration; // The playback position of the composite video
-			if($($(event.target).find("img")[0]).data("videoclip").isCurrent) {
-				position = that.getPlayerTime() - $($(event.target).find("img")[0]).data("videoclip").start;
-				video_doc.current = 0;
-			}
-			
-			for(var i = 1; i < video_doc.videos.length; i++)
-			{
-				video_doc.videos[i] = $($(event.target).find("img")[i]).data("videoclip");
-				video_doc.videos[i].position = video_doc.videos[i - 1].position + video_doc.videos[i - 1].duration;
-				if(video_doc.videos[i].isCurrent) {
-					video_doc.current = i;
-					position = position_counter + that.getPlayerTime() - video_doc.videos[i].start;
-				}
-				position_counter += video_doc.videos[i].duration;
-			}
-			// reposition the timeline slider handle
-			$timeline_slider.slider("option","value", position);
-			$timeline_slider.find(".annotation_group").remove();
-			$timeline_slider.find(".video_timeline_bar").remove();
+		this.bind("keydown.myEvents",(function (splicer) { return function(e) { splicer_keydown.call(splicer, e); } })(this));
 
-			for(var v = 0; v < video_doc.videos.length; v ++)
-			{
-				render_timeline_marks.apply(that,[v]);
-			}
-			//redraw the video span on the timeline slider
-			var $vid_span = $timeline_slider.find(".video_timeline_span");
-			var width =(video_doc.videos[video_doc.current].duration / video_doc.duration * 100.0).toFixed(2) + "%";
-			$vid_span.css("left", (video_doc.videos[video_doc.current].position / video_doc.duration * 100.0).toFixed(2) + "%");
-			$vid_span.css("width", width);
-	    	};
 	
 		$player_overlay.mouseup(function() {
 			if($(this).data("region"))
@@ -1712,11 +1694,175 @@ var onPlayerStateChange;
 			that.pauseVideo();
 		};
 		$annotate_button.click(annotate_button_onclick);
-		
+
+		var $fullscreen_button = this.find("button#full_screen_button");
+		var full_screen_button_onclick = function() {
+			methods.hideControls.call(that);
+		};		
+		$fullscreen_button.click(full_screen_button_onclick);
+
+
 		var $timeline_scroll_pane = $("#timeline_pane"), $timeline_scroll_content = $("#timeline_scroll_content");
 		
-		$timeline_scroll_content.find("ul").sortable({helper:"clone", distance:5, containment: $timeline_scroll_pane, change:methods.timeline_sortable_onchange, stop: timeline_sortable_onstop, placeholder:"timeline-sortable-highlight"})
-				.data("video_doc", video_doc);
+		//$timeline_scroll_content.find("ul").sortable({helper:"clone", distance:5, containment: $timeline_scroll_pane, change:methods.timeline_sortable_onchange, stop: timeline_sortable_onstop, placeholder:"timeline-sortable-highlight"})
+		//		.data("video_doc", video_doc);
+
+		this.data("list_unbind_mousemove", []); //This array here holds the jQuery Objects that need to have their mousemove event unregistered when the mouseup event happens outside of that element.
+		function video_icon_mousemove(e) {
+			this.find("img").unbind("mouseup");
+			var mouse_pre = this.data("mouse_pre");
+			var delta_x = e.pageX - mouse_pre.x;
+			this.data("mouse_pre", {x:e.pageX, y: e.pageY});
+			// change the relative left position of the $li, and place a placeholder li in the place of the old li
+			//var px_regex = /(-*\d+)px/;
+			var left_css_match = this.css("left").match(px_regex);
+			var left = 0;
+			if(left_css_match) {
+				left = parseFloat(left_css_match[1]);
+			}
+			this.css("left", left + delta_x);
+			// Insert the ghost (the placeholder with the yellow border)
+			var $li = this;
+			//console.log(e.pageX);
+			var num_sib = this.siblings().length;
+			this.siblings().each(function( ind,elem) {
+				if( !$(elem).hasClass("ghost")) {
+					if( $(elem).offset().left > $li.offset().left) {
+						$(elem).before($li.data("ghost"));
+						return false;
+					}
+					if(num_sib == ind + 1) {
+						$(elem).after($li.data("ghost"));
+						return false;
+					}
+				}
+			});
+		};
+
+
+		//This function returns a jQuery object wrapping the parent with the tagname that is closest to the element, tagname has to be all caps, if the element is of that tagname then the element is returned
+		function findFirstParentByTagname(element, tagname) {
+			var $p = $(element);
+			while($p) {
+				if($p.prop("tagName") == tagname)
+					return $p;
+				$p = $p.parent();
+			}
+			return null;
+		}
+
+		function video_icon_mousewait(e) {
+			
+			e.preventDefault();
+			var $li = findFirstParentByTagname(e.target, "LI");
+			
+			var first_mousedown = $li.data("first_mouse_position");
+			if( (e.pageX - first_mousedown.x) * (e.pageX - first_mousedown.x) + (e.pageY - first_mousedown.y) * (e.pageY - first_mousedown.y) > 64 ) {
+				$li.unbind("mousemove");
+				$li.css("z-index", "10");
+				var left = $li.offset().left - $timeline_scroll_content.offset().left;
+				$li.css("position", "absolute");
+				$li.css("left", left + "px");
+				//Add a placeholder after this li element as the placeholder
+				var $li_placeholder = $("<li class='ghost'><div class='video-icon-ghost'></div></li>");
+				$li.after($li_placeholder);
+				$li.data("ghost", $li_placeholder);
+				$li.data("mouse_pre", {x:e.pageX, y: e.pageY});
+				that.data("list_unbind_mousemove").push({element:$li, callback: video_icon_mouseup});
+				$li.mousemove( (function(this_context) {  return function(e) {video_icon_mousemove.call(this_context, e); }  } ) ($li) );
+				$li.unbind("mouseup", video_icon_mouseup)
+				$li.mouseup (video_icon_mouseup);
+			}
+		}
+
+		function video_icon_mouseup(e) {
+			var $li = this;
+			if((typeof ($li.after)) == "undefined")
+				$li = findFirstParentByTagname(e.target, "LI");
+			$li.unbind("mousemove");
+			$li.find("img").unbind("mouseup");
+			$li.css("z-index", "auto");
+			$li.css("position", "static");
+			$li.css("left", "auto");
+			if($li.data("ghost") && ( typeof ($li.data("ghost") )) != "undefined" && (typeof ($li.data("ghost").prev) ) != "undefined") {
+				var $ghost = $li.data("ghost");
+				if($ghost.next().length != 0) {
+					$ghost.next().before($li);
+				}
+				else if($ghost.prev().length != 0) {
+					$ghost.prev().after($li);
+				}
+				else
+					$timeline_scroll_content.append($li);
+				$li.data("ghost").remove();
+				$li.data("ghost", null);
+			}
+			$li.find("img").mouseup((function(){return function(event) {video_icon_clicked.call(that,event)} })());
+			
+			
+			var $ul = findFirstParentByTagname($li, "UL");
+	    		//rearrange the order of the video clips
+			var video_doc = that.data("video_doc");
+			if(video_doc.videos.length == 1) return;
+			video_doc.videos[0] = $($ul.find("img")[0]).data("videoclip");
+			
+			video_doc.videos[0].position = 0;
+			//console.log(video_doc);
+			var position, position_counter = video_doc.videos[0].duration; // The playback position of the composite video
+			if($($ul.find("img")[0]).data("videoclip").isCurrent) {
+				position = that.getPlayerTime() - $($ul.find("img")[0]).data("videoclip").start;
+				video_doc.current = 0;
+			}
+			
+			for(var i = 1; i < video_doc.videos.length; i++)
+			{
+				video_doc.videos[i] = $($ul.find("img")[i]).data("videoclip");
+				video_doc.videos[i].position = video_doc.videos[i - 1].position + video_doc.videos[i - 1].duration;
+				if(video_doc.videos[i].isCurrent) {
+					video_doc.current = i;
+					position = position_counter + that.getPlayerTime() - video_doc.videos[i].start;
+				}
+				position_counter += video_doc.videos[i].duration;
+			}
+			// reposition the timeline slider handle
+			$timeline_slider.slider("option","value", position);
+			$timeline_slider.find(".annotation_group").remove();
+			$timeline_slider.find(".video_timeline_bar").remove();
+
+			for(var v = 0; v < video_doc.videos.length; v ++)
+			{
+				render_timeline_marks.apply(that,[v]);
+			}
+			//redraw the video span on the timeline slider
+			var $vid_span = $timeline_slider.find(".video_timeline_span");
+			var width =(video_doc.videos[video_doc.current].duration / video_doc.duration * 100.0).toFixed(2) + "%";
+			$vid_span.css("left", (video_doc.videos[video_doc.current].position / video_doc.duration * 100.0).toFixed(2) + "%");
+			$vid_span.css("width", width);
+			//console.log(video_doc);
+		}
+
+		$timeline_scroll_content.bind("DOMNodeInserted", function(e) { 
+			//console.log("new video icon added");
+			var $li = $(e.target);
+			if($li.prop("tagName") != "LI") {
+				// In IE, 
+				//console.log("warning: New element added to a ul as a direct child but it is not a li");
+				//console.log($li.html());
+				return;
+			}
+			$li.mousedown(function(e) {
+				e.preventDefault();
+				$li.data("first_mouse_position", {x:e.pageX, y: e.pageY});
+				$li.unbind("mousemove");
+				$li.mousemove(video_icon_mousewait);
+			});
+			
+			$li.mouseup(function() {
+				//Since there could only be one element being dragged, the array should contain at most one element, so here we could just clear it
+				that.data("list_unbind_mousemove", []);
+				$li.unbind("mousemove");
+			});
+		});
 
 		var $timeline_scrollbar = $("#timeline_scrollbar").slider({slide: function( event, ui ) {
         		if ( $timeline_scroll_content.width() > $timeline_scroll_pane.width() ) {
@@ -1890,7 +2036,7 @@ var onPlayerStateChange;
 					.append(new_li);
 				var new_img = new_li.find("img");
 				new_img.data("videoclip", video_doc.videos[video_doc.videos.length - 1]);
-				new_img.click((function(){return function(event) {video_icon_clicked.call(that,event)} })());
+				new_img.mouseup((function(){return function(event) {video_icon_clicked.call(that,event)} })());
 				new_img.data("video_doc",video_doc);
 				new_img.data("player",that.data("yt_player"));
 				that.data("timeline_slider").slider("option","max", video_doc.duration);
@@ -2005,7 +2151,7 @@ var onPlayerStateChange;
 							vid_icon_img[index].src = vid_thumbnail_url;
 							$(vid_icon_img[index]).data("videoclip",videoDocObj.videos[index]);
 							$(vid_icon_img[index]).data("video_doc",video_doc);
-							$(vid_icon_img[index]).click((function(){return function(event) {video_icon_clicked.call(that,event)} })());
+							$(vid_icon_img[index]).mouseup((function(){return function(event) {video_icon_clicked.call(that,event)} })());
 						}
 						else {
 							//TODO: response returned an empty array, video is not available, show error message 
@@ -2059,7 +2205,7 @@ var onPlayerStateChange;
 				vid_icon_img[index].src = value.thumbnailurl;
 				$(vid_icon_img[index]).data("videoclip",videoDocObj.videos[index]);
 				$(vid_icon_img[index]).data("video_doc",video_doc);
-				$(vid_icon_img[index]).click((function(){return function(event) {video_icon_clicked.call(that,event)} })());
+				$(vid_icon_img[index]).mouseup((function(){return function(event) {video_icon_clicked.call(that,event)} })());
 
 			    }
 			    
@@ -2141,8 +2287,9 @@ var onPlayerStateChange;
 			elem.element.css("display", "none");
 		});
 		this.find("#video_container").css({position: "absolute", left:"0px", top:"0px"});
-		document.youtube_player.height = document.height;
-		document.youtube_player.width = document.width;
+		document.youtube_player.height = window.innerHeight;
+		document.youtube_player.width = window.innerWidth;
+	
 		this.find("#player_overlay").css({width: document.width, height: document.height});
 		this.data("controls_displayed", false);
 		
