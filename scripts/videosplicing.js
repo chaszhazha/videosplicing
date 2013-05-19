@@ -1,16 +1,5 @@
-//TODO: when editing existing annotations, the start position will change to the current player time, but the more desirable way of doing it would be to preserve 
-//	the position, maybe disable the playback buttons and keyboard playback controls when there are editable regions on the player overlay
 
-//TODO: test with a qt movie as the first video
-
-//TODO: use keyboard navigation to jump to the next mark on the timeline
 //TODO: UI to delete a video
-
-//TODO: edit annotation color and background color and opacity
-//TODO: prevent cross site scripting during annotation text input
-
-//TODO: full screen mode ?
-//TODO: editor's mode and player's mode ?
 
 function Link(source_doc, target_doc) {
 	this.source_doc = source_doc;
@@ -1548,7 +1537,7 @@ var onPlayerStateChange;
 					$(player).css("visibility", "visible");
 					$(document.qt_player).css("visibility", "hidden");
 
-					//TODO: this might be a probalem: player is not ready yet
+					// this might be a probalem: player is not ready yet
 					player.loadVideoById({videoId:video_doc.videos[0].vid, startSeconds:video_doc.videos[0].start});
 				}
 				else if(video_doc.videos[0].source == "qt") {
@@ -1990,14 +1979,12 @@ var onPlayerStateChange;
 						return;
 					}
 					else {
-						//TODO: show error
 						duration_property = null;
 						return
 					}
 				}
 				else if (xmlhttp.readyState==4 && xmlhttp.status!=200)
     				{
-					//TODO: show error
     					duration_property = null;
 					return;
 				}
